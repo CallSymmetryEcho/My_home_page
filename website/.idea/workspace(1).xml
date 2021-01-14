@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="e9635a96-2550-49c4-acdb-2143487e1e3f" name="Default Changelist" comment="" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="package.json" />
+        <option value="HTML File" />
+        <option value="CSS File" />
+        <option value="JavaScript File" />
+      </list>
+    </option>
+  </component>
+  <component name="ProjectId" id="1XQcaxCSgLd1ogGnTNFvK9I3UkD" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="DefaultHtmlFileTemplate" value="HTML File" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/bootstrap-4.4.1-dist/js" />
+    <property name="list.type.of.created.stylesheet" value="CSS" />
+    <property name="nodejs_package_manager_path" value="npm" />
+    <property name="settings.editor.selected.configurable" value="settings.json.schema" />
+  </component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\ustc-mitlb\Desktop\学习\website\bootstrap-4.4.1-dist\js" />
+      <recent name="C:\Users\ustc-mitlb\Desktop\学习\website\bootstrap-4.4.1-dist\others" />
+      <recent name="C:\Users\ustc-mitlb\Desktop\学习\website\bootstrap-4.4.1-dist\css" />
+      <recent name="C:\Users\ustc-mitlb\Desktop\学习\website\image" />
+      <recent name="C:\Users\ustc-mitlb\Desktop\学习\website\image\file" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\ustc-mitlb\Desktop\学习\website\bootstrap-4.4.1-dist\css" />
+      <recent name="C:\Users\ustc-mitlb\Desktop\学习\website\bootstrap-4.4.1-dist\js" />
+      <recent name="C:\Users\ustc-mitlb\Desktop\学习\website\image\file" />
+      <recent name="C:\Users\ustc-mitlb\Desktop\学习\website\image" />
+    </key>
+  </component>
+  <component name="RunManager">
+    <configuration name="index.html" type="JavascriptDebugType" temporary="true" nameIsGenerated="true" uri="http://localhost:63342/website/index.html" useBuiltInWebServerPort="true">
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="e9635a96-2550-49c4-acdb-2143487e1e3f" name="Default Changelist" comment="" />
+      <created>1580981826535</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1580981826535</updated>
+      <workItem from="1580993301102" duration="58533000" />
+      <workItem from="1581176982285" duration="1076000" />
+      <workItem from="1581178439495" duration="992000" />
+      <workItem from="1581185596694" duration="364000" />
+      <workItem from="1581219402922" duration="267000" />
+      <workItem from="1582041924472" duration="2948000" />
+      <workItem from="1582044974431" duration="230000" />
+      <workItem from="1582070817648" duration="777000" />
+      <workItem from="1584594517308" duration="51000" />
+      <workItem from="1586488213619" duration="88000" />
+      <workItem from="1586488484941" duration="7000" />
+      <workItem from="1586490441279" duration="1198000" />
+      <workItem from="1586630070776" duration="8088000" />
+      <workItem from="1586679845722" duration="9864000" />
+      <workItem from="1586697256734" duration="9807000" />
+      <workItem from="1586796020132" duration="3712000" />
+      <workItem from="1586838749229" duration="225000" />
+      <workItem from="1587098789752" duration="1555000" />
+      <workItem from="1587109428602" duration="2238000" />
+      <workItem from="1587272617974" duration="2086000" />
+      <workItem from="1587321016257" duration="1625000" />
+      <workItem from="1587358214841" duration="1238000" />
+      <workItem from="1587359529151" duration="328000" />
+      <workItem from="1587361337249" duration="3090000" />
+      <workItem from="1587371908811" duration="708000" />
+      <workItem from="1587548845475" duration="3273000" />
+      <workItem from="1587962329222" duration="676000" />
+      <workItem from="1588601585721" duration="123000" />
+      <workItem from="1590034931302" duration="14470000" />
+      <workItem from="1590820755881" duration="2472000" />
+      <workItem from="1597594223921" duration="138000" />
+      <workItem from="1600535419962" duration="37000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="2" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="551" y="278" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1586680014573">
+      <screen x="0" y="0" width="1680" height="1010" />
+    </state>
+    <state x="449" y="240" key="#com.intellij.fileTypes.FileTypeChooser/0.0.1368.872@0.0.1368.872" timestamp="1581061418643" />
+    <state x="551" y="278" key="#com.intellij.fileTypes.FileTypeChooser/0.0.1680.1010/1680.-156.900.1400@0.0.1680.1010" timestamp="1586680014573" />
+    <state width="1348" height="227" key="GridCell.Tab.0.bottom" timestamp="1581178062095">
+      <screen x="0" y="0" width="1368" height="872" />
+    </state>
+    <state width="1348" height="227" key="GridCell.Tab.0.bottom/0.0.1368.872@0.0.1368.872" timestamp="1581178062095" />
+    <state width="1348" height="227" key="GridCell.Tab.0.center" timestamp="1581178062095">
+      <screen x="0" y="0" width="1368" height="872" />
+    </state>
+    <state width="1348" height="227" key="GridCell.Tab.0.center/0.0.1368.872@0.0.1368.872" timestamp="1581178062095" />
+    <state width="1348" height="227" key="GridCell.Tab.0.left" timestamp="1581178062094">
+      <screen x="0" y="0" width="1368" height="872" />
+    </state>
+    <state width="1348" height="227" key="GridCell.Tab.0.left/0.0.1368.872@0.0.1368.872" timestamp="1581178062094" />
+    <state width="1348" height="227" key="GridCell.Tab.0.right" timestamp="1581178062095">
+      <screen x="0" y="0" width="1368" height="872" />
+    </state>
+    <state width="1348" height="227" key="GridCell.Tab.0.right/0.0.1368.872@0.0.1368.872" timestamp="1581178062095" />
+    <state width="1348" height="227" key="GridCell.Tab.1.bottom" timestamp="1581178062097">
+      <screen x="0" y="0" width="1368" height="872" />
+    </state>
+    <state width="1348" height="227" key="GridCell.Tab.1.bottom/0.0.1368.872@0.0.1368.872" timestamp="1581178062097" />
+    <state width="1348" height="227" key="GridCell.Tab.1.center" timestamp="1581178062096">
+      <screen x="0" y="0" width="1368" height="872" />
+    </state>
+    <state width="1348" height="227" key="GridCell.Tab.1.center/0.0.1368.872@0.0.1368.872" timestamp="1581178062096" />
+    <state width="1348" height="227" key="GridCell.Tab.1.left" timestamp="1581178062095">
+      <screen x="0" y="0" width="1368" height="872" />
+    </state>
+    <state width="1348" height="227" key="GridCell.Tab.1.left/0.0.1368.872@0.0.1368.872" timestamp="1581178062095" />
+    <state width="1348" height="227" key="GridCell.Tab.1.right" timestamp="1581178062096">
+      <screen x="0" y="0" width="1368" height="872" />
+    </state>
+    <state width="1348" height="227" key="GridCell.Tab.1.right/0.0.1368.872@0.0.1368.872" timestamp="1581178062096" />
+    <state x="0" y="201" key="run.anything.popup" timestamp="1581141876364">
+      <screen x="0" y="0" width="1368" height="872" />
+    </state>
+    <state x="0" y="201" key="run.anything.popup/0.0.1368.872@0.0.1368.872" timestamp="1581141876364" />
+    <state x="348" y="194" width="672" height="678" key="search.everywhere.popup" timestamp="1581147844698">
+      <screen x="0" y="0" width="1368" height="872" />
+    </state>
+    <state x="348" y="194" width="672" height="678" key="search.everywhere.popup/0.0.1368.872@0.0.1368.872" timestamp="1581147844698" />
+  </component>
+</project>
