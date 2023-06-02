@@ -1,0 +1,280 @@
+@import url('https://fonts.googleapis.com/css?family=Lato:400,400i&display=swap'); /*============= COURSE SECTION =============*/
+
+.narrow {
+  width: 75%;
+  margin: 1.5rem auto;
+  padding-top: 2rem;
+}
+.narrow h1 {
+    font-size: 2.4rem;
+  }
+.btn-secondary {
+  border-width: medium;
+  border-radius: 0;
+  padding: .6rem 1.2rem;
+  font-size: 1.2rem;
+  text-transform: uppercase;
+  margin: 1rem;
+  border-color: #1EBBA3;
+  background-color: #1EBBA3;
+  color: white;
+}
+.btn-secondary:hover,
+.btn-secondary:focus {
+  border-color: #189582;
+  background-color: #189582;
+  color: white;
+}
+
+body {
+  overflow-x: hidden;
+  font-family: 'Lato',sans-serif;
+  color: whitesmoke;
+}
+.offset:before{
+    display: block;
+    content: "";
+    height: 4rem;
+
+}
+/*---Navigation---*/
+ .navbar{
+   text-transform: capitalize;
+   font-weight: 700;
+   font-size: 1.1rem;
+   letter-spacing: .1rem;
+   background: rgba(0,0,0,0.6)!important;
+
+ }
+
+.navbar-brand img {
+   height: 6rem;
+
+ }
+ .navbar-nav li {
+   padding-right: .7rem;
+ }
+ .navbar-dark .navbar-nav .navbar-link {
+   color: white;
+   padding-top: .6rem;
+ }
+.navbar-dark .navbar-nav .navbar-link.active,
+.navbar-dark .navbar-nav .navbar-link:hover {
+  color: #7952b3!important;
+}
+/*--landing Page ---*/
+.home-inner{
+  background-image: url("../../image/b46547_58d056318abb4ef294034caef296485b.jpg");
+}
+.caption {
+    width: 100%;
+    max-width: 100%;
+    text-outline: 2rem;
+    position: absolute ;
+    top:38%;
+    z-index: 1;
+    color: white;
+    text-transform: capitalize;
+
+}
+.caption h1 {
+    font-size: 2.8rem;
+    font-weight: 700;
+    letter-spacing: .3rem;
+    text-shadow:.1rem .1rem .8rem #7952b3;
+    padding-bottom: 1rem;
+    width: 25% content-box;
+
+
+}
+.caption h5 {
+    font-size: 1rem;
+    text-shadow:.1rem .1rem .5rem #7952b3;
+    padding-bottom: 1.6rem;
+}
+.btn-lg{
+    border-width: medium;
+    border-radius: 2rem;
+    padding: .6rem 1rem;
+    font-size: 1.1rem;
+    margin-top: 3rem;
+
+}
+/*---figure---*/
+.figure {
+    width: 10rem;
+    margin-top: 4rem;
+}
+
+.row{
+    margin-top: 4rem;
+}
+/*---Start of th EX---/
+ */
+.narrow{
+    width: 100%;
+    margin: 1.5rem ;
+    padding-top: 2rem;
+}
+.narrow h3 {
+    font-size: 2.4rem;
+    color: white;
+
+}
+.narrow p {
+    color: white;
+}
+.narrow h5{
+    color: white;
+}
+.jumbotron{
+    background-color: black;
+    size:auto;
+    color: black;
+}
+h3.heading{
+
+    font-weight: 700;
+    text-transform: uppercase;
+    color: white;
+}
+.heading-underline{
+    width: 10rem;
+    height: .2rem;
+    background-color: slateblue;
+    margin: 0 auto;
+}
+.feature svg.svg-inline--fa{
+    color: #7952b3;
+}
+.feature svg.svg-inline--fa:hover{
+    color: crimson;
+}
+.feature h3{
+    font-size: 1.3rem;
+    padding-bottom: .4rem;
+}
+.feature p {
+font-size: 1.1rem;
+    color: black;
+
+}
+.feature i{
+   align-content: center;
+    margin-bottom: 16rem;
+}
+.fixed{
+    background-image: url("../../image/1.jpg");
+    z-index: 1;
+
+
+}
+.dark {
+    background-color: rgba(0,0,0,0.1);
+}
+.fixed-background h3{
+  margin-top: 2rem;
+    margin-bottom: 3rem;
+
+}
+.fixed-background i {
+}
+.fixed-background p {
+    margin-top: 1.5rem;
+
+}
+/*---material----*/
+.Material img{
+    width: 100%;
+    border-radius: 50%;
+}
+blockquote .svg-inline--fa{
+    color: #6f42c1;
+    margin: 1rem;
+
+}
+.material-hr{
+    border-top: .05rem solid slateblue;
+}
+
+
+/*---footer---*/
+footer{
+    text-align: center;
+    background-color: black;!important;
+    size: auto;
+    color: white;
+    padding-top: 3rem;
+
+
+}
+footer img {
+    height: 6rem;
+    margin: auto;
+   border-radius: 4rem;
+
+}
+footer a {
+    color: #fafbff!important;
+}
+footer  svg.svg-inline--fa{
+    font-size: 2rem;
+
+}
+footer  svg.svg-inline--fa:hover{
+    color: #6f42c1!important;
+}
+hr.socket{
+    width: 100%;
+    border-top: .2rem solid darkslateblue;
+}
+.bg-info{
+    background-image: url("../../image/btntry2.gif");
+    z-index: 1;
+}
+.row {
+    margin-top: 4rem;
+}
+.feature{
+    align-items: center;
+    align-content: center;
+    width: auto;
+    height: auto;
+    position: absolute;
+    left: 45%;
+    top: 35%;
+}
+.btn-outline-info{
+    align-content: center;
+}
+.btn:hover{
+    color: #e4606d;
+}
+.figure1{
+    width: 10rem;
+    margin-top: 1rem;
+
+}
+
+.img-fluid{
+    align-items: center !important;
+    align-content: center !important;
+}
+/*============ BOOTSTRAP BREAK POINTS:
+
+Extra small (xs) devices (portrait phones, less than 576px)
+No media query since this is the default in Bootstrap
+
+Small (sm) devices (landscape phones, 576px and up)
+@media (min-width: 576px) { ... }
+
+Medium (md) devices (tablets, 768px and up)
+@media (min-width: 768px) { ... }
+
+Large (lg) devices (desktops, 992px and up)
+@media (min-width: 992px) { ... }
+
+Extra (xl) large devices (large desktops, 1200px and up)
+@media (min-width: 1200px) { ... }
+
+=============*/

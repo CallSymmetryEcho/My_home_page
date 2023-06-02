@@ -1,0 +1,290 @@
+@import url('https://fonts.googleapis.com/css?family=Abril+Fatface|Josefin+Sans');
+
+html,
+body {
+  background-color: #25303C;
+  margin: 0;
+  padding: 0;
+  font-family: 'Josefin Sans', sans-serif;
+}
+
+.carousel {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  width: 100%;
+  width: 100vw;
+  height: 100%;
+  height: 100vh;
+  .slider {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    &-for {
+      position: absolute;
+      display: block;
+      width: 100%;
+      width: 100vw;
+      height: 100%;
+      height: 100vh;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 1;
+      .slick-list {
+        position: relative;
+        .slick-track {
+          position: relative;
+          .slick-slide {
+            position: relative;
+            div {
+              position: relative;
+              display: block;
+              width: 100%;
+              width: 100vw;
+              height: 100%;
+              height: 100vh;
+              .item {
+                position: absolute;
+                display: block;
+                width: 100%;
+                width: 100vw;
+                height: 100%;
+                height: 100vh;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                left: 0;
+                background-repeat: no-repeat;
+                background-position: center center;
+                background-attachment: absolute;
+                -webkit-background-size: cover !important;
+                -moz-background-size: cover !important;
+                -o-background-size: cover !important;
+                background-size: cover !important;
+                filter: grayscale(100%);
+                /* Current draft standard */
+                -webkit-filter: grayscale(100%);
+                /* New WebKit */
+                -moz-filter: grayscale(100%);
+                -ms-filter: grayscale(100%);
+                -o-filter: grayscale(100%);
+                /* Not yet supported in Gecko, Opera or IE */
+                filter: url(resources.svg#desaturate);
+                /* Gecko */
+                filter: gray;
+                /* IE */
+                -webkit-filter: grayscale(1);
+                /* Old WebKit */
+                opacity: 0.15;
+              }
+            }
+          }
+        }
+      }
+    }
+    &-nav {
+      position: relative;
+      display: block;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 2;
+      .slick-list {
+        position: relative;
+        .slick-track {
+          position: relative;
+          .slick-slide {
+            position: relative;
+            outline: 0px none;
+            outline: 0px;
+            div {
+              position: relative;
+              .nav-item {
+                position: relative;
+                display: block;
+                .content {
+                  position: relative;
+                  display: block;
+                  height: 75%;
+                  height: 75vh;
+                  margin: 16px;
+                  background-repeat: no-repeat;
+                  background-position: center center;
+                  background-attachment: absolute;
+                  -webkit-background-size: cover !important;
+                  -moz-background-size: cover !important;
+                  -o-background-size: cover !important;
+                  background-size: cover !important;
+                  -webkit-box-shadow: 0 5px 15px rgba(0,0,0,0.14);
+                  box-shadow: 0 5px 15px rgba(0,0,0,0.14);
+                  &:before {
+                    content: '';
+                    display: block;
+                    background: linear-gradient(180deg, rgba(86, 97, 107, 0) 0%, rgba(32, 51, 69, 0.7) 100%);
+                    opacity: 0;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                  }
+                  .number {
+                    position: absolute;
+                    top: 2em;
+                    left: 2em;
+                    filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.5));
+                    color: #ffffff;
+                    &,
+                    &:before,
+                    &:after {
+                      vertical-align: middle;
+                    }
+                    &:before,
+                    &:after {
+                      display: inline-block;
+                      content: '';
+                      height: 0.133em;
+                      margin-top: -0.2em;
+                      background: rgb(255, 255, 255);
+                    }
+                    &:before {
+                      width: 0;
+                      margin-left: 0;
+                    }
+                    &:after {
+                      width: 3em;
+                      margin-left: 1em;
+                    }
+                  }
+                  .body {
+                    position: absolute;
+                    bottom: 2em;
+                    left: 2em;
+                    right: 2em;
+                    color: #ffffff;
+                  }
+                  .location,
+                  .headline {
+                    position: relative;
+                    bottom: 0;
+                    cursor: default;
+                    color: #ffffff;
+                  }
+                  &:before,
+                  .number:before,
+                  .number:after,
+                  .location,
+                  .headline,
+                  .link {
+                    transition: 375ms ease-in-out;
+                  }
+                  .location {
+                    font-weight: 100;
+                    margin-bottom: 1.5em;
+                    transition-delay: 60ms;
+                    @media screen and (max-width: 992px) {
+                          font-size: .8em;
+                    }
+                  }
+                  .headline {
+                    font-family: 'Abril Fatface', cursive;
+                    font-size: 2.867em;
+                    transition-delay: 50ms;
+                    color: #ffffff;
+                    letter-spacing: -2px;
+                    @media screen and (max-width: 992px) {
+                          font-size: 1.8em;
+                    }
+                  }
+                  .link {
+                    display: inline-block;
+                    background: #3498db;
+                    color: #ffffff;
+                    padding: 0.75em 1.25em 0.5em 1.25em;
+                    font-size: 1.33em;
+                    opacity: 0;
+                    position: absolute;
+                    bottom: -2em;
+                    pointer-events: none;
+                    transition-delay: 25ms;
+                    @media screen and (max-width: 992px) {
+                      font-size: 0.8em;
+                    }
+                  }
+                  &.hover,
+                  &:hover {
+                    &:before {
+                      opacity: 1;
+                    }
+                    &:before,
+                    .number:before,
+                    .number:after,
+                    .location,
+                    .headline,
+                    .link {
+                      transition: 500ms ease-in-out;
+                    }
+                    .number:before {
+                      width: 3em;
+                      margin-right: 1em;
+                    }
+                    .number:after {
+                      width: 0;
+                      margin-right: 0;
+                    }
+                    .location {
+                      transition-delay: 0;
+                      bottom: 4em;
+                    }
+                    .headline {
+                      transition-delay: 100ms;
+                      bottom: 1.5em;
+                    }
+                    .link {
+                      bottom: 0;
+                      opacity: 1;
+                      transition-delay: 250ms;
+                      pointer-events: auto;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  .navigation {
+    position: absolute;
+    display: block;
+    width: 56px;
+    height: 100px;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 16px;
+    z-index: 100;
+    @media screen and (max-width: 992px) {
+      right: 0;
+    }
+    .back,
+    .forward {
+      font-family: 'Josefin Sans', sans-serif;
+      background-color: #3498db;
+      color: #ffffff;
+      width: 56px;
+      height: 48px;
+      border: none;
+      font-size: 32px;
+      margin: 1px 0;
+      cursor: pointer;
+      outline: 0px none;
+      outline: 0px;
+      &.slick-disabled {
+        pointer-events: none;
+        background-color: #25303C;
+      }
+    }
+  }
+}

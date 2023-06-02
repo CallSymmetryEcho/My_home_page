@@ -1,0 +1,301 @@
+/**
+ * demo.css
+ * https://coidea.website
+ *
+ * Licensed under the MIT license.
+ * http://www.opensource.org/licenses/mit-license.php
+ * 
+ * Copyright 2018, COIDEA
+ * https://coidea.website
+ */
+
+ 
+
+.carouselb {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  width: 100%;
+  width: 100vw;
+  height: 100%;
+  height: 100vh;
+}
+.carouselb .slider {
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+.carouselb .slider-for {
+  position: absolute;
+  display: block;
+  width: 100%;
+  width: 100vw;
+  height: 100%;
+  height: 100vh;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+}
+.carouselb .slider-for .slick-list {
+  position: relative;
+}
+.carouselb .slider-for .slick-list .slick-track {
+  position: relative;
+}
+.carouselb .slider-for .slick-list .slick-track .slick-slide {
+  position: relative;
+}
+.carouselb .slider-for .slick-list .slick-track .slick-slide div {
+  position: relative;
+  display: block;
+  width: 100%;
+  width: 100vw;
+  height: 100%;
+  height: 100vh;
+}
+.carouselb .slider-for .slick-list .slick-track .slick-slide div .item {
+  position: absolute;
+  display: block;
+  width: 100%;
+  width: 100vw;
+  height: 100%;
+  height: 100vh;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-attachment: absolute;
+  -webkit-background-size: cover !important;
+  -moz-background-size: cover !important;
+  -o-background-size: cover !important;
+  background-size: cover !important;
+  filter: grayscale(100%);
+  /* Current draft standard */
+  -webkit-filter: grayscale(100%);
+  /* New WebKit */
+  -moz-filter: grayscale(100%);
+  -ms-filter: grayscale(100%);
+  -o-filter: grayscale(100%);
+  /* Not yet supported in Gecko, Opera or IE */
+  filter: url(resources.svg#desaturate);
+  /* Gecko */
+  filter: gray;
+  /* IE */
+  -webkit-filter: grayscale(1);
+  /* Old WebKit */
+  opacity: 0.15;
+}
+.carouselb .slider-nav {
+  position: relative;
+  display: block;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+.carouselb .slider-nav .slick-list {
+  position: relative;
+}
+.carouselb .slider-nav .slick-list .slick-track {
+  position: relative;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide {
+  position: relative;
+  outline: 0px none;
+  outline: 0px;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div {
+  position: relative;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item {
+  position: relative;
+  display: block;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content {
+  position: relative;
+  display: block;
+  height: 75%;
+  height: 75vh;
+  margin: 16px;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-attachment: absolute;
+  -webkit-background-size: cover !important;
+  -moz-background-size: cover !important;
+  -o-background-size: cover !important;
+  background-size: cover !important;
+  -webkit-box-shadow: 0 5px 15px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.14);
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content:before {
+  content: "";
+  display: block;
+  background: linear-gradient(180deg, rgba(86, 97, 107, 0) 0%, rgba(32, 51, 69, 0.85) 100%);
+  opacity: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .number {
+  position: absolute;
+  top: 2em;
+  left: 2em;
+  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.5));
+  color: #ffffff;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .number, .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .number:before, .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .number:after {
+  vertical-align: middle;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .number:before, .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .number:after {
+  display: inline-block;
+  content: "";
+  height: 0.133em;
+  margin-top: -0.2em;
+  background: white;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .number:before {
+  width: 0;
+  margin-left: 0;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .number:after {
+  width: 3em;
+  margin-left: 1em;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .body {
+  position: absolute;
+  bottom: 2em;
+  left: 2em;
+  right: 2em;
+  color: #ffffff;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .location,
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .headline {
+  position: relative;
+  bottom: 0;
+  cursor: default;
+  color: #ffffff;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content:before,
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .number:before,
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .number:after,
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .location,
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .headline,
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .link {
+  transition: 375ms ease-in-out;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .location {
+  font-weight: 100;
+  margin-bottom: 1.5em;
+  transition-delay: 60ms;
+}
+@media screen and (max-width: 992px) {
+  .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .location {
+    font-size: 0.8em;
+  }
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .headline {
+  font-family: "Abril Fatface", cursive;
+  font-size: 2.867em;
+  transition-delay: 50ms;
+  color: #ffffff;
+  letter-spacing: -2px;
+}
+@media screen and (max-width: 992px) {
+  .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .headline {
+    font-size: 1.8em;
+  }
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .link {
+  display: inline-block;
+  background: #3498db;
+  color: #ffffff;
+  padding: 0.7em 1.25em 0.5em 1.25em;
+  font-size: 1.33em;
+  opacity: 0;
+  position: absolute;
+  bottom: -2em;
+  pointer-events: none;
+  transition-delay: 25ms;
+}
+@media screen and (max-width: 992px) {
+  .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .link {
+    font-size: 0.8em;
+  }
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content.hover:before, .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content:hover:before, .carouselb .slider-nav .slick-list .slick-track .slick-slide.slick-current div .nav-item .content:before {
+  opacity: 1;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content.hover:before,
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content.hover .number:before,
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content.hover .number:after,
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content.hover .location,
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content.hover .headline,
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content.hover .link, .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content:hover:before,
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content:hover .number:before,
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content:hover .number:after,
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content:hover .location,
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content:hover .headline,
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content:hover .link {
+  transition: 500ms ease-in-out;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content.hover .number:before, .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content:hover .number:before, .carouselb .slider-nav .slick-list .slick-track .slick-slide.slick-current div .nav-item .content .number:before {
+  width: 3em;
+  margin-right: 1em;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content.hover .number:after, .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content:hover .number:after, .carouselb .slider-nav .slick-list .slick-track .slick-slide.slick-current div .nav-item .content .number:after {
+  width: 0;
+  margin-right: 0;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content.hover .location, .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content:hover .location, .carouselb .slider-nav .slick-list .slick-track .slick-slide.slick-current div .nav-item .content .location {
+  transition-delay: 0;
+  bottom: 4em;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content.hover .headline, .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content:hover .headline, .carouselb .slider-nav .slick-list .slick-track .slick-slide.slick-current div .nav-item .content .headline {
+  transition-delay: 100ms;
+  bottom: 1.5em;
+}
+.carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content.hover .link, .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content:hover .link, .carouselb .slider-nav .slick-list .slick-track .slick-slide.slick-current div .nav-item .content .link {
+  bottom: 0;
+  opacity: 1;
+  transition-delay: 250ms;
+  pointer-events: auto;
+}
+.carouselb .navigation {
+  position: absolute;
+  display: block;
+  width: 56px;
+  height: 100px;
+  top: 50%;
+  transform: translateY(-50%);
+  right: 14px;
+  z-index: 100;
+}
+@media screen and (max-width: 992px) {
+  .carouselb .navigation {
+    right: 0;
+  }
+}
+.carouselb .navigation .back,
+.carouselb .navigation .forward {
+  font-family: "Josefin Sans", sans-serif;
+  background-color: #3498db;
+  color: #ffffff;
+  width: 56px;
+  height: 48px;
+  border: none;
+  font-size: 32px;
+  margin: 1px 0;
+  cursor: pointer;
+  outline: 0px none;
+  outline: 0px;
+}
+.carouselb .navigation .back.slick-disabled,
+.carouselb .navigation .forward.slick-disabled {
+  pointer-events: none;
+  background-color: #25303C;
+}
