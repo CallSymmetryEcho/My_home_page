@@ -16,9 +16,8 @@
   display: block;
   overflow: hidden;
   width: 100%;
-  width: 100vw;
   height: 100%;
-  height: 100vh;
+  min-height: 100vh;
 }
 .carouselb .slider {
   position: relative;
@@ -29,9 +28,7 @@
   position: absolute;
   display: block;
   width: 100%;
-  width: 100vw;
   height: 100%;
-  height: 100vh;
   top: 0;
   right: 0;
   bottom: 0;
@@ -51,17 +48,13 @@
   position: relative;
   display: block;
   width: 100%;
-  width: 100vw;
   height: 100%;
-  height: 100vh;
 }
 .carouselb .slider-for .slick-list .slick-track .slick-slide div .item {
   position: absolute;
   display: block;
   width: 100%;
-  width: 100vw;
   height: 100%;
-  height: 100vh;
   top: 0;
   right: 0;
   bottom: 0;
@@ -275,9 +268,55 @@
   right: 14px;
   z-index: 100;
 }
-@media screen and (max-width: 992px) {
+@media screen and (max-width: 768px) {
+  .carouselb, 
+  .carouselb .slider-for,
+  .carouselb .slider-for .slick-list .slick-track .slick-slide div .item {
+      height: 600px; /* Fixed height instead of full viewport on mobile */
+      min-height: auto;
+  }
+
+  .carouselb .slider-nav {
+      top: 50%; 
+      transform: translateY(-50%);
+      width: 100%;
+  }
+
+  .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content {
+      height: 400px; /* Smaller cards */
+      margin: 0 10px; /* Reduced margin */
+  }
+
+  .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .headline {
+      font-size: 1.5em; /* Smaller font */
+      line-height: 1.2;
+  }
+
+  .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .location {
+      font-size: 0.9em;
+      margin-bottom: 0.5em;
+  }
+  
+  .carouselb .slider-nav .slick-list .slick-track .slick-slide div .nav-item .content .number {
+      top: 1em;
+      left: 1em;
+      font-size: 0.8em;
+  }
+
   .carouselb .navigation {
-    right: 0;
+      top: auto;
+      bottom: 10px;
+      right: 50%;
+      transform: translateX(50%);
+      width: 120px; /* Wider for side-by-side buttons */
+      height: auto;
+      display: flex;
+      justify-content: space-between;
+  }
+  
+  .carouselb .navigation .back,
+  .carouselb .navigation .forward {
+      margin: 0;
   }
 }
 .carouselb .navigation .back,

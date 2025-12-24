@@ -69,23 +69,23 @@ body {
 .caption {
     width: 100%;
     max-width: 100%;
-    text-outline: 2rem;
-    position: absolute ;
-    top:38%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     z-index: 1;
     color: white;
     text-transform: capitalize;
-
+    padding: 0 15px; /* Prevent text touching edges */
 }
+
 .caption h1 {
     font-size: 2.8rem;
     font-weight: 700;
     letter-spacing: .3rem;
-    text-shadow:.1rem .1rem .8rem #7952b3;
+    text-shadow: .1rem .1rem .8rem #7952b3;
     padding-bottom: 1rem;
-    width: 25% content-box;
-
-
+    width: 100%; /* Fixed invalid property */
 }
 .caption h5 {
     font-size: 1rem;
@@ -1335,5 +1335,62 @@ img {
     .timeline-content h2 {
         font-size: 1.4rem;
         padding-right: 10px;
+    }
+
+    /* --- Mobile Navigation & Layout Fixes --- */
+    .caption {
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
+        padding: 0 1rem;
+    }
+
+    .caption h1 {
+        font-size: 1.6rem;
+        letter-spacing: 0.1rem;
+        text-shadow: 1px 1px 5px #000;
+    }
+
+    .caption h3 {
+        font-size: 1rem;
+    }
+
+    .btn-lg {
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .narrow {
+        width: 95%;
+        padding-top: 1rem;
+    }
+
+    .jumbotron {
+        padding: 2rem 1rem;
+    }
+
+    /* Fix resume section on mobile */
+    .resume-preview-container {
+        transform: scale(0.8);
+        margin-top: 2rem;
+        height: 400px;
+    }
+    
+    .resume-text {
+        text-align: center;
+        padding: 0 1rem;
+    }
+
+    .resume-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .resume-actions .btn {
+        width: 100%;
+        margin-right: 0 !important;
+        margin-bottom: 1rem;
     }
 }
