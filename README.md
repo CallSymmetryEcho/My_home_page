@@ -33,6 +33,11 @@ The website has undergone a complete modernization overhaul, transitioning from 
 *   **3D Carousel:** An auto-rotating slider showcasing other web projects.
 *   **Live Previews:** Embeds iframes of linked sites for instant context.
 
+### 5. Mobile Optimization
+*   **Responsive Layout:** Fixed alignment issues on mobile devices for the Certificates and Resume sections.
+*   **Touch-Friendly Navigation:** Enhanced slider controls and buttons for better usability on small screens.
+*   **Adaptive Typography:** Adjusted font sizes and spacing to ensure readability across all viewports.
+
 ## 🛠 Installation & Setup
 
 1.  **Clone the Repository**
