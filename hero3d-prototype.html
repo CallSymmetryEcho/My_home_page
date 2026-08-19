@@ -6,11 +6,11 @@
 <title>Hero Prototype 3D — Bin Lian</title>
 <style>
   :root {
-    --bg: #060b18;
-    --accent: #5eead4;
-    --amber: #fbbf24;
-    --text: #e2e8f0;
-    --text-dim: #64748b;
+    --bg: #000004;
+    --text: #f4f7f7;
+    --text-dim: #8b9498;
+    --accent: #9beff0;          /* the V-term and the slider. Nothing else. */
+    --hair: rgba(255,255,255,0.10);
     --mono: ui-monospace, "SF Mono", Menlo, monospace;
   }
   * { margin: 0; box-sizing: border-box; }
@@ -18,15 +18,36 @@
   body { background: var(--bg); overflow: hidden; font-family: system-ui, sans-serif; }
   canvas#c3d { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 
+  .nav {
+    position: fixed; top: 0; left: 0; right: 0; height: 64px; z-index: 3;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 clamp(20px, 4vw, 44px);
+    border-bottom: 1px solid var(--hair);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  .nav .mark {
+    font-size: 13px; font-weight: 500; letter-spacing: .34em;
+    color: var(--text); text-decoration: none;
+  }
+  .nav nav { display: flex; gap: clamp(18px, 3vw, 34px); }
+  .nav nav a {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
+    color: var(--text-dim); text-decoration: none; transition: color .25s ease;
+  }
+  .nav nav a:hover { color: var(--text); }
+
   .hero-copy {
-    position: fixed; left: 50%; top: 58%; transform: translateX(-50%);
+    position: fixed; left: 50%; top: 72%; transform: translateX(-50%);
     text-align: center; pointer-events: none; user-select: none;
     opacity: 0; animation: fadein 1.6s ease 2.8s forwards;
+    /* soft dark scrim so the copy stays legible over the bright fabric lines */
+    padding: 26px 36px; white-space: nowrap;
+    background: radial-gradient(ellipse 100% 100% at center, rgba(0,0,4,0.78) 30%, rgba(0,0,4,0) 75%);
   }
   @keyframes fadein { to { opacity: 1; } }
   .id-line {
-    font-family: var(--mono); font-size: 12px; letter-spacing: .22em;
-    text-transform: uppercase; color: var(--accent); margin-bottom: 14px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px;
   }
   .tagline {
     font-size: clamp(15px, 2.2vw, 21px); font-weight: 300;
@@ -34,33 +55,33 @@
   }
   .hint {
     font-family: var(--mono); font-size: 11px; color: var(--text-dim);
-    margin-top: 26px; letter-spacing: .08em;
+    margin-top: 26px; letter-spacing: .08em; opacity: .75;
   }
 
   .physics-panel {
-    position: fixed; left: 20px; bottom: 18px; z-index: 2;
+    position: fixed; left: clamp(20px, 4vw, 44px); bottom: 20px; z-index: 2;
     pointer-events: none; user-select: none;
     opacity: 0; animation: fadein 1.6s ease 2.8s forwards;
   }
   .eq {
     font-family: Georgia, 'Times New Roman', serif; font-style: italic;
-    color: #94a3b8; font-size: 13px; line-height: 1.7; margin-bottom: 6px;
+    color: var(--text-dim); font-size: 13px; line-height: 1.75; margin-bottom: 7px;
   }
   .eq .v-term { color: var(--accent); }
-  .eq2 { font-size: 12px; color: var(--text-dim); }
+  .eq2 { font-size: 12px; }
   .pes-cap {
     font-family: var(--mono); font-size: 10px; color: var(--text-dim);
-    letter-spacing: .06em;
+    letter-spacing: .06em; opacity: .7;
   }
   @media (max-width: 760px) { .physics-panel { display: none; } }
 
   .hud {
-    position: fixed; right: 20px; bottom: 18px; z-index: 2;
-    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
-    display: flex; align-items: center; gap: 8px;
+    position: fixed; right: clamp(20px, 4vw, 44px); bottom: 20px; z-index: 2;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .12em;
+    color: var(--text-dim); display: flex; align-items: center; gap: 10px;
   }
   .hud input[type=range] { width: 110px; accent-color: var(--accent); }
-  .hud .val { color: var(--accent); min-width: 3ch; }
+  .hud .val { color: var(--text); min-width: 3ch; }
 
   .fallback-note {
     position: fixed; inset: 0; display: flex; flex-direction: column;
@@ -74,18 +95,27 @@
 <body>
 <canvas id="c3d"></canvas>
 
+<header class="nav">
+  <a class="mark" href="#">BIN LIAN</a>
+  <nav>
+    <a href="#">RESEARCH</a>
+    <a href="#">MACHINES</a>
+    <a href="image/file/Bin_s_Resume.pdf">CV</a>
+  </nav>
+</header>
+
 <div class="hero-copy">
   <p class="id-line">PhD Researcher &nbsp;·&nbsp; Texas Materials Institute &nbsp;·&nbsp; UT Austin</p>
   <p class="tagline">Commanding matter with fields — and building machines that learn to do it.</p>
-  <p class="hint">move your cursor to reshape the field · click to pulse-melt</p>
+  <p class="hint">your cursor is an optical trap · click to pulse-melt</p>
 </div>
 
 <div class="physics-panel">
   <div class="eq">
     <div>d<b>v</b> = −γ<b>v</b>&thinsp;dt − ∇V(<b>r</b>, t)&thinsp;dt + √(2γk<sub>B</sub>T)&thinsp;d<b>W</b><sub>t</sub></div>
-    <div class="eq2">V(<b>r</b>, t) = ½k|<b>r</b>−<b>r</b><sub>site</sub>|² + <span class="v-term">A&thinsp;e<sup>−|<b>r</b>−<b>r</b><sub>cursor</sub>(t)|²/σ²</sup></span></div>
+    <div class="eq2">V(<b>r</b>, t) = ½k|<b>r</b>−<b>r</b><sub>site</sub>|² − <span class="v-term">A&thinsp;e<sup>−|<b>r</b>−<b>r</b><sub>cursor</sub>(t)|²/σ²</sup></span></div>
   </div>
-  <div class="pes-cap">the landscape below is V(x, y) · your cursor is the highlighted term</div>
+  <div class="pes-cap">the sheet below is V(x, y) · your cursor is the highlighted term</div>
 </div>
 
 <div class="hud">

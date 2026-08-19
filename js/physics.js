@@ -13,10 +13,13 @@ export const CONFIG = {
   repelR: 6,          // pair soft-repulsion radius [px]
   repelE: 600,        // pair repulsion strength [px/s^2]
   mouseR: 45,         // pointer field-source range [px] (v1 had 80 — too wide to aim)
-  // V_cursor = A exp(-r^2/R^2); |-grad V| peaks at r = R/sqrt(2) with magnitude
-  // sqrt(2)·e^(-1/2)·A/R. A was rescaled with R to hold that peak at ~21k px/s^2.
-  mouseA: 1.12e6,     // gaussian bump amplitude A [px^2/s^2]
-  pesVref: 2.5e4,     // V normalisation for the terrain (v1 5e4 — wells read too shallow)
+  // V_cursor = A exp(-r^2/R^2) with A < 0: an attractive well, i.e. an optical trap
+  // (光镊). Beads are pulled in and gather at the cursor, and the spacetime fabric
+  // dips under it. Sign propagates for free: step()'s force is the exact -grad V and
+  // fillPotential() adds the same term, so flipping A flips both.
+  // |-grad V| peaks at r = R/sqrt(2) with magnitude sqrt(2)·e^(-1/2)·|A|/R (~24k px/s^2).
+  mouseA: -1.3e6,     // gaussian well amplitude A [px^2/s^2] — negative = attractive
+  pesVref: 2.5e4,     // V normalisation for the fabric relief (v1 5e4 — wells too shallow)
   meltTime: 2.6,      // s of trap-off after a click
   pulseKT: 9,         // laser-pulse heating factor on melt (decays)
   word: 'BIN LIAN',
@@ -30,11 +33,12 @@ export const CONFIG = {
   zNoiseScale: 0.6,   // z thermal noise, as a fraction of the xy sigma
   zInit: 20,          // |z| spread at injection [px]
 
-  // --- renderer knobs, parked here so every tunable lives in one place
-  terrainRelief: 55,  // world units from canyon floor to far-field plateau
-  terrainSpan: 1.15,  // terrain sheet size / viewport size
-  canyonSharpen: 1,   // u -> u^this before the log; drop to ~0.85 to sharpen walls
-  hover: 11,          // bead centre height above the terrain surface [px]
+  // --- renderer knobs (the GR "rubber sheet"), parked here so every tunable lives in one place
+  fabricRelief: 0.115, // dip depth of a letter well, as a fraction of viewport H
+  fabricSpan: 2.0,     // sheet span / viewport along x (the z span is fixed at 1.5·H)
+  fabricU0: 1.1,       // well width: dip ∝ exp(-u/U0) with u = V/pesVref
+  fabricClamp: 2.3,    // a cursor well may dip up to this × a letter well
+  hover: 11,           // legacy bead lift above the sheet [px]
 };
 
 const N = CONFIG.N;
@@ -47,8 +51,8 @@ const tracer = new Uint8Array(N);     // 1 = amber tracer particle
 export const state = { px, py, pz, vx, vy, vz, hasT, tracer };
 
 // Where fillPotential() samples: world x of column gx is x0 + gx*dx, y of row gy is
-// y0 + gy*dy. The lattice spans the viewport scaled by terrainSpan, edge to edge, so
-// a PlaneGeometry(W*span, H*span, w-1, h-1) lines up with it vertex for vertex.
+// y0 + gy*dy. The lattice spans fabricSpan·W by 1.5·H, centred on the viewport, so the
+// renderer's fabric line lattice lines up with it vertex for vertex.
 export const grid = { w: 0, h: 0, x0: 0, y0: 0, dx: 0, dy: 0 };
 
 let W = 0, H = 0;
@@ -183,7 +187,7 @@ export function init(w, h, gridW, gridH) {
 
 export function resize(w, h) {
   W = Math.max(1, w); H = Math.max(1, h);
-  const sw = W * CONFIG.terrainSpan, sh = H * CONFIG.terrainSpan;
+  const sw = W * CONFIG.fabricSpan, sh = H * 1.5;
   grid.dx = sw / (grid.w - 1); grid.dy = sh / (grid.h - 1);
   grid.x0 = (W - sw) / 2; grid.y0 = (H - sh) / 2;   // sheet centred on the viewport
   for (let i = 0; i < N; i++) {                     // a shrink can leave particles outside the box
