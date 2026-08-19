@@ -14,16 +14,18 @@
 
 参考基准：骨架 brittanychiang.com (v4)、光感 linear.app/lusion.co 克制版、打磨 rauno.me。
 
-## 已确认决策
+## 已确认决策（v3 视觉语言，2026-08 定稿方向）
 
-- 深色 deep-tech；⚠️ 配色是临时占位，上线前必须专项精修（Bin：现在有点丑）
-- **Three.js 本地 vendor**（`js/vendor/`，three 0.185.1 + postprocessing/RoomEnvironment，importmap，零构建、无 CDN）；物理引擎仍是自研 Langevin，Three.js 只做渲染
-- **势能面融入 3D 场景**：粒子群脚下的发光线框地形 = V(x,y)，名字是雕进地形的峡谷，鼠标推起山丘、粒子同步散开且被地形抬起；Langevin 方程保留为屏幕叠加层
-- **粒子 = 晶莹剔透玻璃球**：InstancedMesh + MeshPhysicalMaterial(transmission) + RoomEnvironment 反射 + UnrealBloom
-- canvas 2D 引擎（hero-prototype.html）保留为移动端/低性能/无 WebGL 降级
-- 手感修正 v2：mouseR 80→45（势太宽）、pesVref 5e4→2.5e4 + terrainRelief（势阱太浅没对比度）、玻璃+bloom+3D（冲击力）
-- subagent（opus/sonnet）写代码，主会话只写 spec 和 review
-- **一个章节一个章节落实**，每节 Bin 验收后进下一节
+- **GR 时空织物美学**：纯黑深空底（#000004）+ 稀疏星尘；势能面 = 细白线四边形网格（LineSegments，无三角对角线），**线的弯曲即势能高低**——借鉴广义相对论橡胶膜可视化；整体单色白 + 一个极克制强调色。质感基准 lusion.co
+- **名字在倾斜悬浮平面上组装**（朝向相机 ~28° 后仰，完全可读）；织物在每个字母正下方凹陷——"名字有质量，压弯脚下的时空"
+- **光标 = 光镊（吸引阱）**：mouseA 取负，织物凹陷、粒子聚拢跟随——对应 optoelectric enrichment；公式随之带负号保持严格一致
+- **Three.js 本地 vendor**（0.185.1 拆分构建含 three.core.js），零构建；物理仍是自研 Langevin
+- **单画布滚动叙事**：一个常驻 WebGL canvas，HTML 卡片滚动叠加；平滑虚拟滚动（Lusion 开源 WebGL-Scroll-Sync 思路）驱动相机/编队/织物；**章节转场 = 换目标点集 + Langevin 自由飞行**（物理即转场）
+- **粒子是贯穿全站的线索**，分镜：Hero 名字 → Light 聚焦光锥 → Heat 六角晶格 → Electric 链化线阵 → Solvation 凝胶网络 → Machines PCB 走线闭环 → Journey 深空星座（USTC→Berkeley→Brown→UT Austin）→ 尾声星尘 + CV
+- **「From Physics to Machines」章节**承载技能线（Physics-AI 创始人叙事桥）：PCB 走线编队 + 工程规格书美学卡片（I design the electronics / build the machines / write the policies / close the loop），结尾一句 "Toward physical AI — machines that learn to command matter."；原 Toolbox 并入
+- 顶部导航：1px 发丝线 + 字距拉宽 wordmark + mono 链接；左下角 Langevin 公式保留（白色）
+- canvas 2D 引擎保留为降级；subagent 写码我 review；**每个视觉里程碑必须先自己截图审查再交付**（Bin 明确要求）
+- 逐章节落实，每节 Bin 验收后进下一节
 
 ## 站点章节
 
