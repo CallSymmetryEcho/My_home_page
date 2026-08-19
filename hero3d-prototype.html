@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hero Prototype 3D — Bin Lian</title>
+<style>
+  :root {
+    --bg: #060b18;
+    --accent: #5eead4;
+    --amber: #fbbf24;
+    --text: #e2e8f0;
+    --text-dim: #64748b;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { background: var(--bg); overflow: hidden; font-family: system-ui, sans-serif; }
+  canvas#c3d { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  .hero-copy {
+    position: fixed; left: 50%; top: 58%; transform: translateX(-50%);
+    text-align: center; pointer-events: none; user-select: none;
+    opacity: 0; animation: fadein 1.6s ease 2.8s forwards;
+  }
+  @keyframes fadein { to { opacity: 1; } }
+  .id-line {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 14px;
+  }
+  .tagline {
+    font-size: clamp(15px, 2.2vw, 21px); font-weight: 300;
+    color: var(--text); max-width: 34em; line-height: 1.5;
+  }
+  .hint {
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    margin-top: 26px; letter-spacing: .08em;
+  }
+
+  .physics-panel {
+    position: fixed; left: 20px; bottom: 18px; z-index: 2;
+    pointer-events: none; user-select: none;
+    opacity: 0; animation: fadein 1.6s ease 2.8s forwards;
+  }
+  .eq {
+    font-family: Georgia, 'Times New Roman', serif; font-style: italic;
+    color: #94a3b8; font-size: 13px; line-height: 1.7; margin-bottom: 6px;
+  }
+  .eq .v-term { color: var(--accent); }
+  .eq2 { font-size: 12px; color: var(--text-dim); }
+  .pes-cap {
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    letter-spacing: .06em;
+  }
+  @media (max-width: 760px) { .physics-panel { display: none; } }
+
+  .hud {
+    position: fixed; right: 20px; bottom: 18px; z-index: 2;
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .hud input[type=range] { width: 110px; accent-color: var(--accent); }
+  .hud .val { color: var(--accent); min-width: 3ch; }
+
+  .fallback-note {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px; z-index: 5;
+    font-family: var(--mono); font-size: 12px; color: var(--text-dim);
+    letter-spacing: .06em; text-align: center; padding: 20px;
+  }
+  .fallback-note a { color: var(--accent); }
+</style>
+</head>
+<body>
+<canvas id="c3d"></canvas>
+
+<div class="hero-copy">
+  <p class="id-line">PhD Researcher &nbsp;·&nbsp; Texas Materials Institute &nbsp;·&nbsp; UT Austin</p>
+  <p class="tagline">Commanding matter with fields — and building machines that learn to do it.</p>
+  <p class="hint">move your cursor to reshape the field · click to pulse-melt</p>
+</div>
+
+<div class="physics-panel">
+  <div class="eq">
+    <div>d<b>v</b> = −γ<b>v</b>&thinsp;dt − ∇V(<b>r</b>, t)&thinsp;dt + √(2γk<sub>B</sub>T)&thinsp;d<b>W</b><sub>t</sub></div>
+    <div class="eq2">V(<b>r</b>, t) = ½k|<b>r</b>−<b>r</b><sub>site</sub>|² + <span class="v-term">A&thinsp;e<sup>−|<b>r</b>−<b>r</b><sub>cursor</sub>(t)|²/σ²</sup></span></div>
+  </div>
+  <div class="pes-cap">the landscape below is V(x, y) · your cursor is the highlighted term</div>
+</div>
+
+<div class="hud">
+  <label for="kt">kT</label>
+  <input type="range" id="kt" min="0" max="8" step="0.1" value="1.2">
+  <span class="val" id="ktv">1.2</span>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "./js/vendor/three.module.js" } }
+</script>
+<script type="module">
+function fallback(why) {
+  document.getElementById('c3d').style.display = 'none';
+  for (const el of document.querySelectorAll('.hero-copy, .physics-panel, .hud')) el.style.display = 'none';
+  const d = document.createElement('div');
+  d.className = 'fallback-note';
+  d.innerHTML = '3D hero unavailable in this browser' +
+    '<a href="./hero-prototype.html">open the 2D version &rarr;</a>';
+  document.body.appendChild(d);
+  console.warn('hero3d:', why);
+}
+
+// dynamic import so a missing importmap / module-resolution failure lands here too,
+// not just a runtime throw out of createHero (no WebGL2 -> same note)
+try {
+  const [scene3d, phy] = await Promise.all([import('./js/scene3d.js'), import('./js/physics.js')]);
+  scene3d.createHero(document.getElementById('c3d'));
+  const kt = document.getElementById('kt'), ktv = document.getElementById('ktv');
+  kt.addEventListener('input', () => { phy.setKT(+kt.value); ktv.textContent = (+kt.value).toFixed(1); });
+} catch (e) {
+  fallback(e);
+}
+</script>
+</body>
+</html>
