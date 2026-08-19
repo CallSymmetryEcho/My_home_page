@@ -1,53 +1,61 @@
-# bin-lian.me 重构总纲
+# bin-lian.me 重构总纲 v2
 
-> 本文件是主页重构的唯一总纲。所有设计决策、物理规格、待办都以此为准，随进展更新。
+> 唯一总纲。所有设计决策、物理规格、待办以此为准，随进展更新。
 
-## 定位
+## 定位与叙事（v2 修正）
 
-「科学家 × 建造者」：UT Austin 材料学博士（nano self-assembly / micromotor swarms / Raman nanosensors，Sci. Adv. + Nat. Commun.）+ WETO Robotics CTO（sEMG × AI）。风格 = deep-tech CTO，不是学术模板页，也不是程序员黑客风。
+主线：**纳米尺度的控制策略——用不同物理场指挥物质，并自建硬件与 AI 闭环**。
 
-参考基准：版式骨架 brittanychiang.com (v4)，hero 手感 Codrops Interactive Particles 但物理为真，光感 linear.app/lusion.co 的克制版，微交互 rauno.me。
+- 四个物理场 = 四条研究线：**光电场**（Optoelectric Raman 一作 preprint：−0.8V 150× 增强、0.6 fM adenine；Optically-induced nano-patterning 2026）、**热场**（PS 温控组装：双电层机制，Clark-Evans R 1.10→1.65、ψ₆↑，LAMMPS 分段 MD + S4 布朗动力学闭环，ongoing）、**电场**（micromotor swarms Sci. Adv. 2023 31 引；microbubble nano-assembly Nat. Commun. 2025）、**溶剂化**（phase separation 凝胶 ChemRxiv preprint）
+- Builder 层（Closing the Loop）：AlchemArm AI 化学家机械臂（LLM+CV+DL/RL 闭环、自建 18.18:1 减速、±0.02mm、自动 MACE/HF）、自制 PCB 电场控制硬件、RL/PINN 反向优化 PID（exploratory）、ML surrogate for FEM（6h→7ms）、CNN-LSTM 手套数字孪生（4 传感器解耦 5 指 98%）
+- **诚实标注**：published 仅 Sci. Adv. 2023 与 Nat. Commun. 2025；Raman/凝胶是 preprint；2026 nano-patterning 期刊未定
+- **克制不炫耀**（Bin 总原则）：不做 Publications 陈列章节，完整清单交给 Download CV；成果用事实和物理讲话
+- **WETO/Orchesta 毕业后再加**（参考 wetourrobotics.com）：data.js 预留 `enabled:false` 条目；hero 身份行本期只写 PhD 侧
+
+参考基准：骨架 brittanychiang.com (v4)、光感 linear.app/lusion.co 克制版、打磨 rauno.me。
 
 ## 已确认决策
 
-- **视觉**：深色 deep-tech。深蓝近黑底 + 青色强调。⚠️ **当前配色是临时的，上线前必须做一轮配色精修**（Bin: 现在有点丑）
-- **架构**：零构建零依赖。`index.html / style.css / particles.js / data.js` 四文件，GitHub Pages 直接托管
-- **hero = 真物理**：Langevin 动力学，组装从势阱涌现（绝不 tween），组装后热涨落永不停止
-- **物理面板（左下角）**：Langevin 方程 + V(r,t) 分解式 + **实时势能面，45° 倾斜 3D 高度场**（深度可见）；鼠标力 = 光标高斯势的解析 −∇V，面板与模拟严格同一个 V
-- **交互彩蛋（全要）**：鼠标局域场源、点击脉冲熔化-再结晶、字形循环 TEXT→六角晶格→WIRES（场致偶极链化）、kT 滑块、闭环微操控小游戏（放微马达研究卡，v1 反馈控制器诚实标注，v2 离线训练 RL 策略权重内嵌）
-- **WETO 露出**：轻露出三处——hero 身份行、一张 Industry 卡、timeline 并行轨道。不做公司页
-- **工作方式**：subagent（opus/sonnet）写代码，主会话只写 spec 和 review
+- 深色 deep-tech；⚠️ 配色是临时占位，上线前必须专项精修（Bin：现在有点丑）
+- **Three.js 本地 vendor**（`js/vendor/`，three 0.185.1 + postprocessing/RoomEnvironment，importmap，零构建、无 CDN）；物理引擎仍是自研 Langevin，Three.js 只做渲染
+- **势能面融入 3D 场景**：粒子群脚下的发光线框地形 = V(x,y)，名字是雕进地形的峡谷，鼠标推起山丘、粒子同步散开且被地形抬起；Langevin 方程保留为屏幕叠加层
+- **粒子 = 晶莹剔透玻璃球**：InstancedMesh + MeshPhysicalMaterial(transmission) + RoomEnvironment 反射 + UnrealBloom
+- canvas 2D 引擎（hero-prototype.html）保留为移动端/低性能/无 WebGL 降级
+- 手感修正 v2：mouseR 80→45（势太宽）、pesVref 5e4→2.5e4 + terrainRelief（势阱太浅没对比度）、玻璃+bloom+3D（冲击力）
+- subagent（opus/sonnet）写代码，主会话只写 spec 和 review
+- **一个章节一个章节落实**，每节 Bin 验收后进下一节
 
-## 物理引擎规格（particles.js）
+## 站点章节
 
-- `CONFIG` 顶部集中所有旋钮：`N, kT, kTScale, gamma, kTrap, repelR/E, mouseR/A, pesVref, meltTime, pulseKT, word, …`
-- Langevin：`dv = (−γv + F)dt + √(2γkT·dt)·η`，semi-implicit Euler，固定 dt + 累加器
-- 短程软排斥：空间哈希 O(N)；渲染：预渲染发光 sprite + 'lighter' 合成 + 拖尾；DPR 自适应
-- 字形目标：离屏 fillText → 像素采样 → 贪心分配；换字 = 改 `CONFIG.word`
-- 模式机：`GAS → TEXT ⇄ MELT`，后续加 `LATTICE / WIRES`
-- 熔化 = 激光脉冲加热（kT ×pulseKT 指数冷却）+ 关阱 meltTime 秒
-- 约 12% 粒子留作背景气体；5% 琥珀示踪粒子
-- `prefers-reduced-motion`：静态组装帧
+1. **Hero（Three.js）**：玻璃粒子在势能地形上自组装 "BIN LIAN"；kT 滑块=thermal field、光标=field source、点击=laser pulse；模式循环 TEXT→六角晶格（热场）→线阵列（电场链化）
+2. **Fields of Control**：Light / Heat / Electric / Solvation 四张场卡（关联论文行 + preprint 状态标注）
+3. **Closing the Loop**：AlchemArm、PCB 硬件、RL/PINN、ML surrogate、手套数字孪生；微操控小游戏后置迭代
+4. ~~Publications~~ 不做独立章节，CV 链接（`image/file/Bin_s_Resume.pdf`，路径不可动）
+5. **Journey**：学术单轨 USTC → Berkeley → Brown → UT Austin（industry 轨道随 WETO 毕业后启用）
+6. **Toolbox**：Compute / Simulate / Fabricate
+7. **Awards + Teaching**（保留 `image/file/TA/*`）、**Footer**（email/GitHub/LinkedIn/blog）
 
-## 页面章节（内容全在 data.js）
+## 文件布局
 
-1. **Hero** — 粒子组装名字；`PhD Researcher @ UT Austin · CTO @ WETO Robotics`；tagline "I study how matter organizes itself — and build tools that command it."；CV → `image/file/Bin_s_Resume.pdf`（路径不可动，外部有链接）
-2. **Selected Work** — 4 卡：Raman Nanosensors / Microbubble Nano-Assembly (Nat. Commun.) / Micromotor Swarm Control (Sci. Adv.，内嵌控制小游戏) / WETO sEMG×AI（标 Industry）
-3. **Publications** — 期刊徽章 + 作者行（Bin Lian 加粗、共一 †）
-4. **Journey** — 双轨 timeline：学术 USTC → Berkeley → Brown → UT Austin ∥ industry NSF I-Corps → WETO CTO
-5. **Toolbox** — Compute / Simulate / Fabricate 三栏
-6. **Awards + Teaching** — 紧凑条状，保留 `image/file/TA/*` 笔记链接
-7. **Footer** — email / GitHub / LinkedIn / blog.bin-lian.com
+```
+index.html            importmap + 章节（整站阶段）
+style.css             token 全在 :root
+js/vendor/            three.module.js + jsm/{postprocessing,shaders,environments}
+js/physics.js         Langevin 核心（渲染无关；CONFIG 全旋钮；fillPotential 供地形）
+js/scene3d.js         Three.js 层（玻璃球/地形/bloom/raycast 指针/视差）
+js/hero2d.js          2D 降级（整站阶段从 hero-prototype.html 搬运）
+js/data.js            全部内容数据（WETO enabled:false）
+hero-prototype.html   2D 参照/试验台（保留）
+hero3d-prototype.html Step1 交付物
+```
 
-## 工作流与状态
+## 待办（章节制）
 
-- 仓库本地：`/Users/lianbin/workdir/_codes_/New_Project/website/My_home_page`，开发在 `redesign` 分支，Bin 批准后合 `main` 自动部署
-- 本地预览：`python3 -m http.server 8137 --directory <repo>`
-- [x] Step 0 原型 `hero-prototype.html`：Langevin 引擎 + 名字组装 + 鼠标 −∇V + 点击熔化 + kT 滑块 + 物理面板（方程 + 势能面）
-- [x] 势能面板升级 3D 倾斜高度场（ridgeline，旋钮 `pesTilt/pesHeight/pesShear`）
-- [ ] 手感定稿（Bin 签字）
-- [ ] 整站搭建（index/style/particles/data 四文件）
-- [ ] LATTICE / WIRES 模式 + 控制小游戏
-- [ ] **配色精修专项**（上线前必做）
-- [ ] 移动端 + reduced-motion + 性能验收
-- [ ] 合并 main 上线，旧 Bootstrap 文件清理
+- [x] Step 0：2D 原型（Langevin + 鼠标 −∇V + 熔化 + kT + 方程/2D→3D 势能面板）
+- [x] three.js vendor 落库
+- [ ] **① Hero 3D 原型**（进行中：physics.js 提炼 + scene3d.js + hero3d-prototype.html）→ Bin 验收手感/帧率
+- [ ] ② Fields of Control
+- [ ] ③ Closing the Loop（+小游戏后置）
+- [ ] ④ Journey ⑤ Toolbox ⑥ Awards+Teaching+Footer（可合并）
+- [ ] ⑦ 收尾：LATTICE/WIRES 模式循环、配色精修（必做）、移动端/性能/a11y
+- [ ] 合并 main 上线，旧 Bootstrap 清理
