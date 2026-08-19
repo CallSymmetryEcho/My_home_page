@@ -35,7 +35,13 @@ export const CONFIG = {
 
   // --- renderer knobs (the GR "rubber sheet"), parked here so every tunable lives in one place
   fabricRelief: 0.115, // dip depth of a letter well, as a fraction of viewport H
-  fabricSpan: 2.0,     // sheet span / viewport along x (the z span is fixed at 1.5·H)
+  fabricSpan: 2.0,     // sheet span / viewport along x
+  // the sheet's physics-y window: it starts fabricYMin·H (z = +0.35·H, just in front of
+  // the name's shadow) and runs fabricYSpan·H toward deep space behind the name — so the
+  // sheet ends before the copy zone instead of ramming huge cells into the near camera
+  fabricYMin: 0.15,
+  fabricYSpan: 1.25,
+  fabricBaseY: 0.10,   // sheet base height in the scene [·H] — just under the letters
   fabricU0: 1.1,       // well width: dip ∝ exp(-u/U0) with u = V/pesVref
   fabricClamp: 2.3,    // a cursor well may dip up to this × a letter well
   hover: 11,           // legacy bead lift above the sheet [px]
@@ -187,9 +193,9 @@ export function init(w, h, gridW, gridH) {
 
 export function resize(w, h) {
   W = Math.max(1, w); H = Math.max(1, h);
-  const sw = W * CONFIG.fabricSpan, sh = H * 1.5;
+  const sw = W * CONFIG.fabricSpan, sh = H * CONFIG.fabricYSpan;
   grid.dx = sw / (grid.w - 1); grid.dy = sh / (grid.h - 1);
-  grid.x0 = (W - sw) / 2; grid.y0 = (H - sh) / 2;   // sheet centred on the viewport
+  grid.x0 = (W - sw) / 2; grid.y0 = H * CONFIG.fabricYMin;   // x centred; y starts at the name's shadow
   for (let i = 0; i < N; i++) {                     // a shrink can leave particles outside the box
     if (px[i] < 0 || px[i] > W) px[i] = Math.random() * W;
     if (py[i] < 0 || py[i] > H) py[i] = Math.random() * H;

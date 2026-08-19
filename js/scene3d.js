@@ -138,6 +138,7 @@ export function createHero(canvas) {
     // cylinder. Log-compress the V<0 side instead, normalised so the trap centre lands
     // exactly on the clamp: a round funnel, and the clamp is touched, never ridden.
     const kNeg = (cl - 1) / Math.log1p(Math.abs(C.mouseA) / C.pesVref);
+    const sheetY = C.fabricBaseY * H;   // the sheet floats just under the letters
     const p = fabGeo.attributes.position.array, col = fabGeo.attributes.color.array;
     for (let k = 0; k < vbuf.length; k++) {
       const V = vbuf[k];
@@ -150,7 +151,7 @@ export function createHero(canvas) {
       if (e > cl) e = cl;
       // ease, so mode switches (gas -> text, click -> melt) grow the wells instead of popping
       const y = hgt[k] += (-relief * e - hgt[k]) * 0.12;
-      p[k * 3 + 1] = y;
+      p[k * 3 + 1] = sheetY + y;
 
       const d = -y / relief;                       // 0 flat · 1 letter well · up to cl in the trap
       const b = 0.38 * fade[k] * (1 + 1.5 * d);    // wells glow, the rim fades into the void
