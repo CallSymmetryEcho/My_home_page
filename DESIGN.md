@@ -44,7 +44,7 @@
 - 仓库本地：`/Users/lianbin/workdir/_codes_/New_Project/website/My_home_page`，开发在 `redesign` 分支，Bin 批准后合 `main` 自动部署
 - 本地预览：`python3 -m http.server 8137 --directory <repo>`
 - [x] Step 0 原型 `hero-prototype.html`：Langevin 引擎 + 名字组装 + 鼠标 −∇V + 点击熔化 + kT 滑块 + 物理面板（方程 + 势能面）
-- [ ] 势能面板升级 3D 倾斜高度场（进行中）
+- [x] 势能面板升级 3D 倾斜高度场（ridgeline，旋钮 `pesTilt/pesHeight/pesShear`）
 - [ ] 手感定稿（Bin 签字）
 - [ ] 整站搭建（index/style/particles/data 四文件）
 - [ ] LATTICE / WIRES 模式 + 控制小游戏

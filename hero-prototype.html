@@ -49,7 +49,7 @@
   .eq .v-term { color: var(--accent); }
   .eq2 { font-size: 12px; color: var(--text-dim); }
   canvas#pes {
-    width: 240px; height: 136px; display: block;
+    width: 260px; height: 170px; display: block;
     border: 1px solid rgba(94, 234, 212, 0.18); border-radius: 4px;
   }
   .pes-cap {
@@ -107,6 +107,9 @@ const CONFIG = {
   mouseR: 80,         // pointer field-source range [px]
   mouseA: 2.0e6,   // gaussian bump amplitude A [px^2/s^2] (V_cursor = A exp(-r^2/R^2))
   pesVref: 5e4,   // potential display scale for the PES panel
+  pesTilt: 0.52,      // y-axis compression of the 3D panel (≈45° view)
+  pesHeight: 40,      // max terrain relief [css px]
+  pesShear: 14,       // x shear from back row to front row [css px] (oblique look)
   meltTime: 2.6,      // s of trap-off after a click
   pulseKT: 9,         // laser-pulse heating factor on melt (decays)
   word: 'BIN LIAN',
@@ -310,9 +313,13 @@ function render() {
 // ---------------------------------------------------------------- PES panel (live V(x,y))
 const pes = document.getElementById('pes');
 const pctx = pes.getContext('2d');
-const PGW = 120, PGH = 68;
-pes.width = PGW; pes.height = PGH;
-const pesImg = pctx.createImageData(PGW, PGH);
+const PGW = 96, PGH = 44;
+const PW = 260, PH = 170, PAD_X = 12, PAD_BOT = 8;
+const PDPR = Math.min(2, devicePixelRatio || 1);
+pes.width = PW * PDPR; pes.height = PH * PDPR;
+pctx.setTransform(PDPR, 0, 0, PDPR, 0, 0);
+const ptX = new Float32Array(PGW), ptY = new Float32Array(PGW);
+const segB = new Uint8Array(PGW), bCnt = new Int32Array(8);
 
 let glyphPts = [];
 const distF = new Float32Array(PGW * PGH);
@@ -334,25 +341,51 @@ function buildDistField() {
   }
 }
 
+// oblique height field: rows are drawn back-to-front, each row's own body masking the rows behind it
 function renderPES() {
-  const d = pesImg.data, R2 = CONFIG.mouseR * CONFIG.mouseR, live = mx > -1e8;
+  const padTop = CONFIG.pesHeight + 10;
+  const plotH = (PH - padTop - PAD_BOT) * (CONFIG.pesTilt / 0.52);   // squashed row spacing = the tilt
+  const xstep = (PW - 2 * PAD_X - CONFIG.pesShear) / (PGW - 1);
+  const zk = CONFIG.pesHeight / Math.log1p(50);   // log relief: far-field plateau and cursor hill both stay on screen
+  const R2 = CONFIG.mouseR * CONFIG.mouseR, live = mx > -1e8;
+  const trap = mode === 'text' ? CONFIG.kTrap / 2 : 0;
+  const cw = W / PGW, ch = H / PGH, invRef = 1 / CONFIG.pesVref;
+
+  pctx.fillStyle = '#060b18';
+  pctx.fillRect(0, 0, PW, PH);
+  pctx.lineWidth = 1;
+
   for (let gy = 0; gy < PGH; gy++) {
-    const y = (gy + .5) * H / PGH;
+    const r = gy / (PGH - 1);
+    const rowY = padTop + r * plotH, x0 = PAD_X + CONFIG.pesShear * (1 - r);  // back rows shifted right
+    const y = (gy + .5) * ch, row = gy * PGW;
+    bCnt.fill(0);
     for (let gx = 0; gx < PGW; gx++) {
-      const c = gy * PGW + gx, x = (gx + .5) * W / PGW;
-      let V = mode === 'text' ? (CONFIG.kTrap / 2) * distF[c] : 0;
+      let V = trap * distF[row + gx];
       if (live) {
-        const dxm = x - mx, dym = y - my;
+        const dxm = (gx + .5) * cw - mx, dym = y - my;
         V += CONFIG.mouseA * Math.exp(-(dxm * dxm + dym * dym) / R2);
       }
-      const u = V / CONFIG.pesVref;
-      let t = Math.exp(-2.2 * u);                    // Boltzmann-weight brightness: valleys glow
-      if ((Math.sqrt(u) * 1.25) % 1 < 0.10) t = Math.min(1, t + 0.16);  // evenly spaced equipotential contours (V∝d² ⇒ sqrt bands are equidistant rings)
-      const o = c * 4;
-      d[o] = 6 + t * 52; d[o + 1] = 11 + t * 130; d[o + 2] = 24 + t * 110; d[o + 3] = 255;
+      const u = V * invRef;
+      ptX[gx] = x0 + gx * xstep;
+      ptY[gx] = rowY - zk * Math.log1p(u);
+      const b = Math.min(7, Math.exp(-2.2 * u) * 8 | 0);   // Boltzmann-weight colour, quantized to batch strokes
+      segB[gx] = b; bCnt[b]++;
+    }
+    pctx.beginPath();
+    pctx.moveTo(ptX[0], ptY[0]);
+    for (let gx = 1; gx < PGW; gx++) pctx.lineTo(ptX[gx], ptY[gx]);
+    pctx.lineTo(ptX[PGW - 1], PH); pctx.lineTo(ptX[0], PH); pctx.closePath();
+    pctx.fill();
+    for (let b = 0; b < 8; b++) {
+      if (!bCnt[b]) continue;
+      const t = (b + .5) / 8;
+      pctx.strokeStyle = `rgba(${(6 + t * 88) | 0}, ${(11 + t * 223) | 0}, ${(24 + t * 188) | 0}, 0.9)`;
+      pctx.beginPath();
+      for (let gx = 0; gx < PGW - 1; gx++) if (segB[gx] === b) { pctx.moveTo(ptX[gx], ptY[gx]); pctx.lineTo(ptX[gx + 1], ptY[gx + 1]); }
+      pctx.stroke();
     }
   }
-  pctx.putImageData(pesImg, 0, 0);
 }
 
 // ---------------------------------------------------------------- setup / loop
