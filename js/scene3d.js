@@ -285,8 +285,15 @@ export function createHero(canvas, opts = {}) {
       }
       const u = (x - cx) * PLANE_S;             // along û
       const w = (cy - y) * PLANE_S;             // along ŵ (screen-y is inverted)
+      let X = u, Y = cy0 + w * SINP + n * COSP, Z = -w * COSP + n * SINP;
+      // a pulse belongs to the board, so it rides the board group's own transform (rest
+      // offset, and the dock shrink of the arm stage) — beads are drawn in scene space.
+      if (slot >= 0) {
+        const g = boardGrp.position, gs = boardGrp.scale.x;
+        s *= gs; X = g.x + X * gs; Y = g.y + Y * gs; Z = g.z + Z * gs;
+      }
       M4.makeScale(s, s, s);
-      M4.setPosition(u, cy0 + w * SINP + n * COSP, -w * COSP + n * SINP);
+      M4.setPosition(X, Y, Z);
       mesh.setMatrixAt(k, M4);
     }
     mesh.instanceMatrix.needsUpdate = true;
@@ -422,6 +429,7 @@ export function createHero(canvas, opts = {}) {
   const STAGGER = 0.18;      // per-trace slide duration, inside the .25 → .60 stage
   const DOLLY = 1.6;         // camera distance multiplier at t = 1
   const SILK_EVERY = 3;      // draw every Nth reference designator (23 -> 8)
+  const BOARD_DX = 0.09;     // board group's rest x-offset [·W world] — clears the chapter card
 
   const ss = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
   const stg = (t, a, b) => ss((t - a) / (b - a));
@@ -435,7 +443,8 @@ export function createHero(canvas, opts = {}) {
   }
 
   let board = null, boardBusy = false, boardFail = false;
-  let morphT = 0, held = false, dolly = 1;
+  let morphT = 0, held = false, dolly = 1, dollyM = 1;
+  const bC = new Float32Array(3);   // board centre in world (group-local) coords — the dock anchor
 
   const boardGrp = new THREE.Group();
   boardGrp.visible = false;
@@ -665,6 +674,8 @@ export function createHero(canvas, opts = {}) {
       photoPx = [board.aspect * bs / du, bs / dv];   // image u/v extents, in physics px
     }
 
+    sheetXYZ(bcx, bcy, TRACE_N, bC, 0);          // where the board sits before it docks
+
     const sh = SILK_F * bh * PLANE_S, ls = LOGO_F * bh * PLANE_S;
     for (const sp of silkGrp.children) {
       if (sp.userData.box) { box2p(sp.userData.box[0], sp.userData.box[1], t1); sp.scale.set(ls, ls, 1); }
@@ -695,7 +706,8 @@ export function createHero(canvas, opts = {}) {
     const want = t > 0.002;
     if (want !== held) { held = want; PHY.holdRelease(want); }
     beadScale = 1 - 0.55 * stg(t, 0.05, 0.5);     // released beads recede to a dim gas
-    dolly = 1 + (DOLLY - 1) * stg(t, 0.85, 1);
+    dollyM = 1 + (DOLLY - 1) * stg(t, 0.85, 1);
+    updateArm();                                  // the arm stage extends this frame's camera + board transform
 
     if (!board) { pulseOn = false; return; }
 
@@ -745,6 +757,88 @@ export function createHero(canvas, opts = {}) {
     updateMorph();
   }
 
+  // ------------------------------------------------------------ the machine (chapter ③, finale)
+  // Micro → macro: the board that the sheet just became docks into the machine that hosts it.
+  // The arm is a raw edge dump (Float32 line segments, height-normalised, centred) drawn in
+  // the same additive-white voice as the fabric — a schematic of a real machine, not a render.
+  // setArm(t2) is a pure function of t2, same contract as setMorph.
+  const ARM_URL = './js/data/arm-edges.bin';
+  const ARM_H = 1.05;        // arm height cap [·H world]
+  // …and a footprint cap: this SCARA reaches 2.5× further than it is tall, so height alone
+  // would put half the machine outside the frustum (and its near links in the camera's lap).
+  const ARM_SPAN = 0.62;     // knob: max horizontal extent [·W world]
+  const ARM_X = 0.28;        // arm base, right of centre [·W world]
+  const ARM_Y = 0.0;         // arm base height — sheet level [·H world]
+  const ARM_Z = -0.15;       // arm base, slightly behind the sheet [·H world]
+  const ARM_YAW = -25;       // knob: yaw [deg], so the profile reads instead of the front face
+  const ARM_OP = 0.38;       // final line opacity
+  const DOCK_X = -0.06;      // knobs: dock point, offset from the arm base [·W, ·H, ·H world]
+  const DOCK_Y = 0.22;
+  const DOCK_Z = 0.30;       // + = forward, toward the camera
+  const BOARD_S2 = 0.42;     // board scale at t2 = 1
+  const DOLLY2 = 2.05;       // camera distance multiplier at t2 = 1 (extends DOLLY)
+  const LOOK_DRIFT = 0.35;   // look-at drift toward the arm, as a fraction of its x
+
+  let armGeo = null, arm = null, armBusy = false, armFail = false, armT = 0;
+  // NormalBlending, not additive: pulley teeth stack thousands of edges in one spot and
+  // additive lines blow out into white orbs there — normal blending caps at the line color
+  const armMat = new THREE.LineBasicMaterial({
+    color: 0xcfe4e6, transparent: true, opacity: 0, blending: THREE.NormalBlending, depthWrite: false,
+  });
+
+  // fit from the geometry's own bounds, so a re-exported arm needs no new numbers here
+  function placeArm() {
+    if (!arm) return;
+    const bb = armGeo.boundingBox, d = bb.max.clone().sub(bb.min);
+    const s = Math.min(ARM_H * H / d.y, ARM_SPAN * W / Math.max(d.x, d.z));
+    arm.scale.setScalar(s);
+    arm.position.set(ARM_X * W, ARM_Y * H - bb.min.y * s, ARM_Z * H);   // its base lands on ARM_Y
+    arm.rotation.y = ARM_YAW * Math.PI / 180;
+  }
+
+  function loadArm() {
+    armBusy = true;
+    fetch(opts.armUrl || ARM_URL)
+      .then(r => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status))))
+      .then(b => {
+        armGeo = new THREE.BufferGeometry();
+        armGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(b), 3));
+        armGeo.computeBoundingBox();
+        arm = new THREE.LineSegments(armGeo, armMat);
+        arm.frustumCulled = false;                // authored positions, stale bounds
+        scene.add(arm);
+        armBusy = false;
+        placeArm(); updateArm();
+      })
+      .catch(e => {
+        armFail = true; armBusy = false;          // fail soft: the board still docks, just no machine
+        console.warn('arm stage: no edge data —', e.message);
+      });
+  }
+
+  function updateArm() {
+    const t = armT, a = ss(t);
+    dolly = dollyM + (DOLLY2 - DOLLY) * a;
+    look.x = ARM_X * W * LOOK_DRIFT * a;
+    armMat.opacity = ARM_OP * stg(t, 0, 0.5);
+    if (arm) arm.visible = armMat.opacity > 0.004;
+    // the board shrinks and glides until its centre sits on the dock point
+    const u = stg(t, 0.15, 0.85), sc = 1 + (BOARD_S2 - 1) * u, x0 = BOARD_DX * W;
+    boardGrp.scale.setScalar(sc);
+    boardGrp.position.set(
+      x0 + ((ARM_X + DOCK_X) * W - sc * bC[0] - x0) * u,
+      ((ARM_Y + DOCK_Y) * H - sc * bC[1]) * u,
+      ((ARM_Z + DOCK_Z) * H - sc * bC[2]) * u,
+    );
+  }
+
+  // t2 ∈ [0, 1], scrub-safe both ways. The edge dump is fetched lazily on the first t2 > 0.
+  function setArm(t) {
+    armT = t > 0 ? (t < 1 ? t : 1) : 0;
+    if (armT > 0 && !arm && !armBusy && !armFail) loadArm();
+    updateArm();
+  }
+
   // ------------------------------------------------------------ post
   const composer = new EffectComposer(renderer);   // picks up the renderer's size + DPR
   // the canvas `antialias` flag does nothing once we render into composer targets, and
@@ -790,8 +884,11 @@ export function createHero(canvas, opts = {}) {
     ctr.set(0, SHEET_Y * H, 0);
     plane.setFromNormalAndCoplanarPoint(nrm, ctr);
 
-    // the board is authored in viewport px, so a resize is simply a rebuild
-    if (board) { buildBoardGeom(); updateMorph(); }
+    // the board is authored in viewport px and the arm is placed against W/H, so a resize is
+    // simply a rebuild + a re-derive of both stages from (morphT, armT)
+    if (board) buildBoardGeom();
+    placeArm();
+    updateMorph();               // -> updateArm(): camera dolly, look drift, board dock transform
 
     // beam hangs from the sky down to the group origin (the impact point)
     const bl = BEAM_LEN * H;
@@ -901,6 +998,7 @@ export function createHero(canvas, opts = {}) {
     mode: () => PHY.getMode(),
     lambda: () => PHY.getLambda(),
     setMorph,
+    setArm,
     // everything the morph can get wrong, in one readable object
     boardStats() {
       if (!board) return { board: null, failed: boardFail, pending: boardBusy, t: morphT };
@@ -923,6 +1021,10 @@ export function createHero(canvas, opts = {}) {
         photoOpacity: +photoMat.opacity.toFixed(3), photoPx: photoPx.map(v => +v.toFixed(1)),
         pulseOn, pulses: pulsePos.length / 2, beadScale: +beadScale.toFixed(3),
         dolly: +dolly.toFixed(3), lambda: +PHY.getLambda().toFixed(4), mode: PHY.getMode(),
+        t2: armT, armLoaded: !!arm, armFailed: armFail,
+        armOpacity: +armMat.opacity.toFixed(3), armSegs: armGeo ? armGeo.attributes.position.count / 2 : 0,
+        boardScale: +boardGrp.scale.x.toFixed(3),
+        boardPos: [boardGrp.position.x, boardGrp.position.y, boardGrp.position.z].map(v => Math.round(v)),
       };
     },
   };
@@ -942,6 +1044,7 @@ export function createHero(canvas, opts = {}) {
 
   return {
     setMorph,
+    setArm,
     dispose() {
       cancelAnimationFrame(raf);
       clearTimeout(rt);
@@ -953,6 +1056,8 @@ export function createHero(canvas, opts = {}) {
       bloom.dispose(); outPass.dispose(); composer.dispose();
       fabGeo.dispose(); beadGeo.dispose(); starGeo.dispose(); beamGeo.dispose();
       traceGeo.dispose(); outGeo.dispose(); padGeo.dispose(); faceGeo.dispose(); photoGeo.dispose();
+      if (armGeo) armGeo.dispose();
+      armMat.dispose();
       traceMat.dispose(); outMat.dispose(); padMat.dispose(); faceMat.dispose();
       if (photoMat.map) photoMat.map.dispose();
       photoMat.dispose();

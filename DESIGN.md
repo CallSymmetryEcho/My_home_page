@@ -63,8 +63,9 @@ hero3d-prototype.html Step1 交付物
 - [x] ② Fields of Control 编队与卡片上线（焦斑+衍射环 / 六角晶格 / 13 条链化线阵 / 凝胶渗流网络；retarget 纯物理转场）
 - [ ] ②b **信息架构修正（Bin，进行中）**：纵轴只切大板块、Fields 四场改横向切换（dock 点击 / 方向键 / 触控板横滑）；卡片改「主导公式优先」——I_SERS∝|E|⁴ / κ(T) 屏蔽库仑 / F_DEP∝∇|E|² / Flory–Huggins χ，期刊与引用缩写全部弱化（只留状态章 + 短题名）；导览双组件：底部悬浮四格 field dock + 右缘 **Time Machine 式时间线**（扇形缩放刻度 + 庄严 mono 标签标注当前位置）
 - [x] ③a Fabric→PCB morph（预览页 machines-preview.html，滚动擦洗）：场释放 → 网格线错峰重路由成 **HS_WB 真实板** 150 段走线（js/data/board-hswb.json，KiCad 解析）→ 板框/焊盘/丝印/JAKIE logo 材质化 → 相机拉出；50 珠信号脉冲沿线流动，其余暗退星尘；单色 logo 进预览页导航 → 待 Bin 验收
-- [ ] ③b 整合进主页面（SECTIONS 加 MACHINES + 时间线刻度；已知问题：短视口下内容卡与板身左缘重叠，整合时板身 x 偏移或卡片让位）
-- [ ] ③c 拉出阶段设备嵌入：**待 Bin 提供整臂装配导出**（ROBOT_ARM 只有散件；SolidWorks 装配导 STL/GLB 即可）；边线幽灵渲染
+- [x] ③a+ 板数据 v2：今日 Gerber（自写 RS-274X 解析器，1115 段含弧线/敷铜边界、65 焊盘）+ Bin 指定的蓝色 2D 渲染做实物浮现（对齐目检通过）；换版流程 = 丢新 Gerber zip 重跑 parse_gerber.py
+- [ ] ③b+③c **大整合（进行中）**：主页面加 MACHINES 段（260vh 擦洗区，morph 0→1.8H、机械臂 3.8H→4.6H）、时间线 `02 — MACHINES` 刻度、板身 +0.09W 偏移修卡片重叠、导航单色 logo；**SCARA 机械臂**边线幽灵（`js/data/arm-edges.bin`，15743 段锐边，来源 `OneDrive 桌面/SCARA Robot_V1.STL`）：臂淡入 → 板缩小滑向臂基座对接 → 相机再拉远（微观→宏观收束）
+- 小项待 Bin：板面双 JAKIE logo（照片印刷版 + 线稿 sprite 版）是否只留照片版
 - 旧 js/formations-pcb.js（珠子拼板方案）已退役，整站清理时删除
 - [ ] ③ Closing the Loop（+小游戏后置）
 - [ ] ④ Journey ⑤ Toolbox ⑥ Awards+Teaching+Footer（可合并）

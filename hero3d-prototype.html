@@ -22,6 +22,10 @@
      swarm moves. Panes are empty spacers; the cards inside them are position:fixed.
      Vertical scroll = MAJOR sections only. Content inside a section switches horizontally. */
   .pane  { height: 100vh; }
+  /* MACHINES is the one section that scrubs instead of switching: its height IS the scrub
+     range. 310vh + the 50vh outro puts the last pixel of scroll at s = 4.6H, i.e. tArm = 1
+     (boundaries: hero [0,1H) · fields [1H,2H) · machines [2H,4.6H], 2.6H = 260vh of scrub). */
+  .pane-tall { height: 310vh; }
   .outro { height: 50vh; }
 
   .nav {
@@ -34,7 +38,9 @@
   .nav .mark {
     font-size: 13px; font-weight: 500; letter-spacing: .34em;
     color: var(--text); text-decoration: none;
+    display: flex; align-items: center; gap: 12px;
   }
+  .nav .mark img { height: 26px; width: auto; display: block; }
   .nav nav { display: flex; gap: clamp(18px, 3vw, 34px); }
   .nav nav a {
     font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
@@ -108,6 +114,9 @@
     border: 1px solid var(--hair); border-radius: 2px; padding: 3px 7px;
     font-size: 9.5px; letter-spacing: .16em; color: var(--text-dim);
   }
+  /* the chapter card: same voice, one line wider — its fact list is the longest on the site */
+  .mc { max-width: 32em; }
+  .mc .fc-facts { line-height: 1.9; }
   @media (max-width: 760px) { .field-card { bottom: 15vh; max-width: none; right: 20px; } }
 
   /* ---------------------------------------------------------------- field dock
@@ -211,10 +220,10 @@
 <canvas id="c3d"></canvas>
 
 <header class="nav">
-  <a class="mark" href="#">BIN LIAN</a>
+  <a class="mark" href="#"><img src="image/logo-bin-mono.png" alt="">BIN LIAN</a>
   <nav>
     <a href="#fields" id="nav-research">RESEARCH</a>
-    <a href="#">MACHINES</a>
+    <a href="#machines" id="nav-machines">MACHINES</a>
     <a href="image/file/Bin_s_Resume.pdf">CV</a>
   </nav>
 </header>
@@ -272,6 +281,26 @@
   </article>
 </section>
 
+<!-- Chapter 02. The one section that SCRUBS: its height is the scrub range, and the whole
+     chapter is one card + two numbers (tMorph, tArm) handed to scene3d. -->
+<section class="pane pane-tall" id="machines">
+  <article class="field-card mc" id="machines-card">
+    <p class="fc-kicker">CHAPTER 02 — MACHINES</p>
+    <h2 class="fc-title">From physics to machines</h2>
+    <p class="fc-eq">u(t) = K<sub>p</sub>e + K<sub>i</sub>∫e·dt + K<sub>d</sub>ė &nbsp;→&nbsp;
+      <span class="v-term">u<sub>t</sub> = π<sub>θ</sub>(s<sub>t</sub>)</span></p>
+    <p class="fc-body">I design the electronics, build the machines, and write the policies that
+      close the loop — experiments that run themselves.</p>
+    <p class="fc-facts">
+      robotic arm · 300 mm reach · ±0.02 mm repeatability · self-built 18.18:1 drives<br>
+      ML surrogate for FEM · 6 h → 7 ms<br>
+      5-finger digital twin from 4 hydrogel sensors · 98%<br>
+      autonomous wet-lab loop · CV + LLM + RL
+    </p>
+    <p class="fc-pub"><span class="chip">SYSTEMS</span></p>
+  </article>
+</section>
+
 <div class="outro"></div>
 
 <div class="dock"></div>
@@ -313,7 +342,7 @@ try {
   const [scene3d, PHY, F] = await Promise.all([
     import('./js/scene3d.js'), import('./js/physics.js'), import('./js/formations.js'),
   ]);
-  scene3d.createHero(document.getElementById('c3d'));
+  const hero = scene3d.createHero(document.getElementById('c3d'));
   const kt = document.getElementById('kt'), ktv = document.getElementById('ktv');
   kt.addEventListener('input', () => { PHY.setKT(+kt.value); ktv.textContent = (+kt.value).toFixed(1); });
 
@@ -324,14 +353,25 @@ try {
   //
   // Extension: a new major section = one entry in SECTIONS + one <section class="pane">.
   // A new field = one more .field-card (dock + sub-ticks are built from the cards).
+  //
+  // MACHINES is the exception: it does not switch, it SCRUBS. Its 2.6H of scroll is two
+  // numbers — tMorph (fabric -> PCB) and tArm (the board docking into the machine) — both
+  // pure functions of s, so scrubbing back undoes them exactly.
   const GEN = { focus: F.focus, lattice: F.lattice, wires: F.wires, network: F.network };
-  const cards = [...document.querySelectorAll('.field-card')];
-  const FSEC = 1;                                    // the section the fields live in
+  const cards = [...document.querySelectorAll('#fields .field-card')];
+  const FSEC = 1, MSEC = 2;                          // the sections the fields / machines live in
+  // `at` = where the timeline tick lands you [·H]. MACHINES lands on the materialized board,
+  // not on the first frame of the release.
   const SECTIONS = [
-    { label: '00 — HOME',          subs: 0 },
-    { label: '01 — FIELD CONTROL', subs: cards.length },
+    { label: '00 — HOME',          subs: 0,           at: 0 },
+    { label: '01 — FIELD CONTROL', subs: cards.length, at: 1 },
+    { label: '02 — MACHINES',      subs: 0,           at: 3.9 },
   ];
   const LAST = SECTIONS.length - 1;
+  // scroll boundaries [·H]: hero [0,1) · fields [1,2) · machines [2, 2+MORPH+ARM]
+  const M0 = 2, MORPH = 1.8, ARM = 0.8;              // machines start · morph span · arm span
+  const machinesCard = document.getElementById('machines-card');
+  const c01 = v => (v > 0 ? (v < 1 ? v : 1) : 0);
   const heroCopy = document.querySelector('.hero-copy');
   const pes = document.querySelector('.physics-panel');
   const dock = document.querySelector('.dock');
@@ -355,8 +395,24 @@ try {
   let vSec = 0, fieldIdx = 0;
   let s = scrollY;
   let qaSec = null;   // QA override: pin a section without scrolling (hidden-tab captures composite fixed layers wrongly at scrollY != 0)
-  const secAt = () => clamp(Math.round(s / innerHeight), LAST);
+  let qMorph = null, qArm = null;   // same idea for the two scrub numbers: null = follow the scroll
+  // boundary-based, not round(s/H): the machines section is 2.6 viewports tall, so a
+  // nearest-multiple rule would hand most of it to a section that does not exist.
+  // the −1px: s only ever approaches its target asymptotically (the lerp), so a boundary
+  // tested exactly would never be reached from below — scrollTo(1H) has to land in fields.
+  const secAt = () => (s < innerHeight - 1 ? 0 : s < M0 * innerHeight - 1 ? 1 : MSEC);
+  const morphAt = () => c01((s - M0 * innerHeight) / (MORPH * innerHeight));
+  const armAt = () => c01((s - (M0 + MORPH) * innerHeight) / (ARM * innerHeight));
   const ptsFor = () => (vSec === FSEC ? GEN[cards[fieldIdx].dataset.gen](innerWidth, innerHeight) : null);
+
+  // the machines chapter, in full: two numbers and a card. Called from the scroll tick and
+  // from the QA hook, so both paths run exactly the same visual update.
+  function scrub() {
+    const tm = qMorph !== null ? qMorph : morphAt();
+    hero.setMorph(tm);
+    hero.setArm(qArm !== null ? qArm : armAt());
+    machinesCard.classList.toggle('active', tm > 0.75);
+  }
 
   function render() {
     cards.forEach((c, k) => c.classList.toggle('active', vSec === FSEC && k === fieldIdx));
@@ -377,7 +433,11 @@ try {
   function setSection(i) {
     if (i === vSec) return;
     vSec = i;
-    PHY.retarget(ptsFor());
+    // Inside MACHINES the morph owns λ (scene3d holds the release), so there is nothing to
+    // retarget — and a retarget there would queue a pending word swap that fires later, once
+    // the hold is handed back. Coming back UP, the boundary at 2H is exactly where tMorph
+    // reaches 0, so this retarget re-forms the active field's formation on the same frame.
+    if (i !== MSEC) PHY.retarget(ptsFor());
     render();
   }
 
@@ -391,8 +451,9 @@ try {
 
   // under qaSec the window must stay at scrollY 0, so jump the state instead of scrolling
   function goSec(i) {
-    if (qaSec !== null) { qaSec = clamp(i, LAST); setSection(qaSec); return; }
-    scrollTo({ top: i * innerHeight, behavior: 'smooth' });
+    i = clamp(i, LAST);
+    if (qaSec !== null) { qaSec = i; setSection(i); return; }
+    scrollTo({ top: SECTIONS[i].at * innerHeight, behavior: 'smooth' });
   }
 
   render();
@@ -404,6 +465,7 @@ try {
     if (qaSec !== null) return;
     s += (scrollY - s) * 0.08;
     setSection(secAt());
+    scrub();                      // after setSection: the field re-forms on the frame tMorph hits 0
   })();
 
   dock.addEventListener('click', e => {
@@ -439,10 +501,8 @@ try {
     }
   }, { passive: true });
 
-  document.getElementById('nav-research').addEventListener('click', e => {
-    e.preventDefault();
-    goSec(FSEC);
-  });
+  for (const [id, k] of [['nav-research', FSEC], ['nav-machines', MSEC]])
+    document.getElementById(id).addEventListener('click', e => { e.preventDefault(); goSec(k); });
 
   // formations are generated against a viewport, so they must be re-generated for the new
   // one. 260 ms > scene3d's own 200 ms resize debounce, so PHY.resize() has already run.
@@ -455,13 +515,23 @@ try {
   // QA hook: rAF is suspended in hidden tabs, so tick() never runs there — advance() pulls
   // the scroll position in itself, section(i) jumps to a major section and field(j) to a field.
   //   __hero.section(1); __hero.field(2); __hero.advance(4)
+  //   __hero.section(2); __hero.arm(0.9); __hero.advance(2); __hero.boardStats()
   const adv = __hero.advance;
-  __hero.advance = t => { if (qaSec === null) { s = scrollY; setSection(secAt()); } adv(t); };
+  __hero.advance = t => {
+    if (qaSec === null) { s = scrollY; setSection(secAt()); }
+    scrub();                      // every visual update the rAF tick does, on the sync path too
+    adv(t);
+  };
   __hero.section = i => {
     qaSec = clamp(i, LAST);
     setSection(qaSec);            // no scrollTo: state only, window stays at 0 for clean captures
+    qMorph = qaSec === MSEC ? 1 : 0;   // section(2) = the board, materialized and not yet docked
+    qArm = 0;
+    scrub();
   };
   __hero.field = j => setField(j);
+  __hero.morph = v => { qMorph = c01(+v); scrub(); };   // pinned against the scroll driver, like qaSec
+  __hero.arm = v => { qArm = c01(+v); scrub(); };
 } catch (e) {
   fallback(e);
 }
