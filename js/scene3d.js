@@ -881,54 +881,54 @@ export function createHero(canvas, opts = {}) {
     updateMorph();               // -> updateArm(): every opacity and the camera are re-derived
   }
 
-  // ------------------------------------------------------------ chapter ④ — the planets
-  // The constellation is not a bead swarm any more: one node = one PLANET, textured with the
-  // school's crest on a 1024×512 equirect (crest at 0° and 180°, so the slow spin always
-  // brings a face round). Thin lines wire them together like the Big Dipper.
+  // ------------------------------------------------------------ chapter ④ — Polaris
+  // The constellation is not a bead swarm any more: one node = one STAR — a diffraction-spike
+  // sprite, the way a real telescope draws a bright point. Thin lines wire them together like
+  // the Big Dipper, and UT Austin is the Polaris of the chart: the brightest magnitude.
   //
-  //   setJourney(t4)  .00 → .45  OVERVIEW: planets scale in (staggered), the lines draw
+  //   setJourney(t4)  .00 → .45  OVERVIEW: stars come up (staggered), the lines draw
   //                              themselves, the fabric and the beads hand the stage over.
-  //                   .45 → 1    ZOOM: the focused planet swells to ~0.55H of SCREEN height
-  //                              and glides to a left-of-centre anchor (the detail card owns
-  //                              the right); the others recede, dim and unwire.
+  //                   .45 → 1    ZOOM: the star map converges on ONE star — it swells to
+  //                              ~0.5H of SCREEN height, spikes and all, and glides to a
+  //                              left-of-centre anchor (the detail card owns the right);
+  //                              the rest recede, dim and unwire.
   //   setPlanet(i)    switches while zoomed. focusF *eases* toward i, so the view cruises
-  //                   along the constellation line planet-to-planet instead of cutting.
-  //   setFinale(t5)   camera pulls far back, the planets unwind and shrink to star-points
-  //                   drifting up-right, and one orbit ring comes up around the contact block.
+  //                   along the constellation line star-to-star instead of cutting.
+  //   setFinale(t5)   camera pulls far back, the stars unwind and shrink to points drifting
+  //                   up-right, and one orbit ring comes up around the contact block.
   //
   // Same contract as setMorph/setArm/setExit: pure functions of (t4, focusF, t5), so scrubbing
-  // back undoes every stage exactly.
-  //   [name, x·W, y·H, n̂ offset ·H (depth stagger), texture, radius multiplier]
+  // back undoes every stage exactly. The one non-pure thing is the breathing twinkle, which
+  // lives in drawFrame off its own clock (and therefore shows up under advance() too).
+  //   [name, x·W, y·H, n̂ offset ·H (depth stagger), magnitude]
   const PLANETS = [
-    ['USTC',      0.22, 0.55,  0.04, 'image/planet-ustc.jpg',     1],
-    ['BERKELEY',  0.40, 0.46, -0.04, 'image/planet-berkeley.jpg', 1],
-    ['BROWN',     0.58, 0.40,  0.03, 'image/planet-brown.jpg',    1],
-    ['UT AUSTIN', 0.78, 0.30, -0.03, 'image/planet-utaustin.jpg', 1.25],
+    ['USTC',      0.22, 0.55,  0.04, 1],
+    ['BERKELEY',  0.40, 0.46, -0.04, 1],
+    ['BROWN',     0.58, 0.40,  0.03, 1],
+    ['UT AUSTIN', 0.78, 0.30, -0.03, 1.5],   // Polaris
   ];
-  const PL_R = 0.035;         // base planet radius in the overview [·H world]
-  const PL_ZOOM_H = 0.55;     // focused planet diameter, as a fraction of the SCREEN height
+  // Both sizes are fractions of the SCREEN height, solved against each star's own distance —
+  // a star has no true size, only a magnitude, so distance must not shrink it.
+  const PL_BASE = 0.055;      // overview star size (spikes included)
+  const PL_ZOOM_H = 0.5;      // …and the focused one, zoomed
   const PL_ANCHOR_X = -0.16;  // …parked left of centre [·W world]
-  const PL_DIM = 0.25;        // unfocused planets' opacity multiplier once zoomed
+  const PL_DIM = 0.25;        // unfocused stars' opacity multiplier once zoomed
   const PL_SHRINK = 0.8;      // …and their scale multiplier
-  const PL_SPIN = 0.12;       // rad/s
-  // Two knobs that only exist because of the bloom pass (threshold 0.72, LINEAR): a white
-  // crest under the 2.0 key light lands at ~0.8 and blows out into an unreadable disc.
-  // PL_TINT pulls the albedo down under the threshold, PL_EMIT puts the near-black navy
-  // plate back on the terminator side. Raise PL_EMIT past ~0.35 and the crest blooms again.
-  const PL_TINT = 0xb9c1c4;
-  const PL_EMIT = 0.12;
+  const PL_TW_HZ = 0.4;       // breathing twinkle: rate, and its scale / opacity swing
+  const PL_TW_S = 0.05, PL_TW_O = 0.04;
   const FIN_DOLLY = 2.4;      // camera distance multiplier at t5 = 1
   const RING_R = 0.42;        // orbit ring semi-major axis [·H world], scaled with the dolly
   const RING_RY = 0.66;       // …minor/major axis: an ellipse, so its slow spin is visible
   const RING_TILT = 18 * Math.PI / 180;
   const RING_SPIN = 0.06;     // rad/s
 
-  let planets = null, jourT = 0, finT = 0, planetIdx = 0, focusF = 0;
+  let planets = null, jourT = 0, finT = 0, planetIdx = 0, focusF = 0, starT = 0;
+  const starS = new Float32Array(PLANETS.length);   // per-star base scale / opacity, written by
+  const starO = new Float32Array(PLANETS.length);   // updateJourney, twinkled in drawFrame
   const journeyGrp = new THREE.Group();
   journeyGrp.visible = false;
   scene.add(journeyGrp);
 
-  const planetGeo = new THREE.SphereGeometry(1, 48, 32);   // unit sphere; radius IS the scale
   const linkGeo = new THREE.BufferGeometry();
   linkGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array((PLANETS.length - 1) * 6), 3));
   linkGeo.attributes.position.setUsage(THREE.DynamicDrawUsage);
@@ -960,31 +960,65 @@ export function createHero(canvas, opts = {}) {
   ring.visible = false;
   scene.add(ring);
 
+  // One canvas texture for all four stars — same idiom as makeBeamTex/makeGlowTex, so the
+  // chapter costs zero network. A telescope's star: brilliant gaussian core, two long thin
+  // spikes on the axes, two shorter fainter ones at 45°, and a soft halo holding it together.
+  // S = 512, not 256: the focused star fills half the screen, and at 256 the spikes turn to
+  // mush there. One texture at 512 is cheaper (and one less crossfade) than two at 256.
+  const STAR_S = 512;
+  function makeStarTex() {
+    const S = STAR_S, c = (S - 1) / 2, cv = document.createElement('canvas');
+    cv.width = cv.height = S;
+    const ctx = cv.getContext('2d'), img = ctx.createImageData(S, S), d = img.data;
+    const core = 0.016 * S;          // core σ
+    const sw = 2 / 256 * S;          // spike width σ — the brief's 2px, held at any S
+    const len = 0.40 * S;            // long spike falloff σ: reaches the rim
+    const dlen = 0.40 * len;         // 45° spikes: 40% of the length…
+    const dgain = 0.45;              // …and fainter
+    const halo = 0.13 * S;
+    const R2 = 0.7071067811865476;   // 1/√2, for the 45° rotation
+    const e = (a, s) => Math.exp(-(a * a) / (s * s));
+    // the long spikes run all the way to the rim, where a plain gaussian is still at ~21%
+    // and gets CUT — a blunt rectangular tip, glaring once the focused star fills half the
+    // screen. Shift and renormalise so the falloff reaches exactly 0 at the rim instead.
+    const E = e(0.5 * S, len), EN = 1 / (1 - E);
+    const el = a => { const q = (e(a, len) - E) * EN; return q > 0 ? q : 0; };
+    for (let y = 0; y < S; y++) {
+      const dy = y - c;
+      for (let x = 0; x < S; x++) {
+        const dx = x - c;
+        const u = (dx + dy) * R2, v = (dx - dy) * R2;
+        let i = e(Math.hypot(dx, dy), core)                        // core
+              + e(dx, sw) * el(dy) + e(dy, sw) * el(dx)            // + and × spikes…
+              + dgain * (e(u, sw) * e(v, dlen) + e(v, sw) * e(u, dlen))
+              + 0.16 * e(Math.hypot(dx, dy), halo);                // halo
+        if (i > 1) i = 1;
+        // ice at the faint edges, near-white in the hot middle — the site's one accent
+        const k = (y * S + x) * 4;
+        d[k]     = 155 + (234 - 155) * i;
+        d[k + 1] = 239 + (255 - 239) * i;
+        d[k + 2] = 240 + (255 - 240) * i;
+        d[k + 3] = Math.round(i * 255);
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  let starTex = null;
   function buildPlanets() {
     if (planets) return;
-    const loader = new THREE.TextureLoader();
-    planets = PLANETS.map(([name, , , , url]) => {
-      const mat = new THREE.MeshStandardMaterial({
-        roughness: 0.65, metalness: 0, transparent: true, opacity: 0,
-        color: PL_TINT, emissive: 0xffffff, emissiveIntensity: PL_EMIT,
-      });
-      // fail soft: a missing crest leaves a plain gray planet, never a black hole
-      const tex = loader.load(url, undefined, undefined, () => {
-        console.warn('journey: planet texture missing —', url);
-        mat.map = mat.emissiveMap = null;
-        mat.color.set(0x6b7376); mat.emissive.set(0x14181a);
-        mat.needsUpdate = true;
-      });
-      tex.colorSpace = THREE.SRGBColorSpace;
-      mat.map = mat.emissiveMap = tex;
-      const m = new THREE.Mesh(planetGeo, mat);
-      m.name = name;
-      // the crests sit at u = 0 and u = 0.5; three's sphere puts u = 0.25 at the camera, i.e.
-      // exactly BETWEEN them — so start a quarter turn round and a face is up from frame one.
-      m.rotation.y = Math.PI / 2;
-      m.frustumCulled = false;
-      journeyGrp.add(m);
-      return m;
+    starTex = makeStarTex();
+    planets = PLANETS.map(([name]) => {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: starTex, transparent: true, opacity: 0, depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }));
+      sp.name = name;
+      journeyGrp.add(sp);
+      return sp;
     });
     updateJourney();
   }
@@ -1006,10 +1040,10 @@ export function createHero(canvas, opts = {}) {
     const camY = look.y + (baseY - look.y) * dolly, camD = camZ * dolly;
     const lp = linkGeo.attributes.position.array;
     for (let i = 0; i < planets.length; i++) {
-      const [, fx, fy, nOff, , rm] = PLANETS[i];
+      const [, fx, fy, nOff, mag] = PLANETS[i];
       const born = stg(t, i * 0.07, i * 0.07 + 0.24);        // staggered forming
-      // 1 on the focused planet, ramping to 0 one node away: a fractional focusF therefore
-      // has TWO planets half-grown and half-anchored — that is the cruise between them.
+      // 1 on the focused star, ramping to 0 one node away: a fractional focusF therefore
+      // has TWO stars half-grown and half-anchored — that is the cruise between them.
       const foc = Math.max(0, 1 - Math.abs(i - focusF));
       const k = zoom * foc * (1 - fin), away = zoom * (1 - foc) * (1 - fin);
 
@@ -1019,18 +1053,18 @@ export function createHero(canvas, opts = {}) {
       jp.lerp(ja, k);
       jp.x += 0.30 * W * fin; jp.y += 0.26 * H * fin;        // the finale flings them up-right
 
-      // solve the frustum at this planet's own distance, so PL_ZOOM_H means the same
-      // fraction of the screen on any viewport and at any dolly
+      // the frustum height in world units AT THIS STAR — both sizes below are fractions of
+      // the screen, so a star reads by magnitude alone on any viewport and at any dolly
       const d = Math.hypot(jp.x, jp.y - camY, jp.z - camD);
-      const rZoom = PL_ZOOM_H * d * Math.tan(FOV * Math.PI / 360);
-      const rBase = PL_R * H * rm * born * (1 - (1 - PL_SHRINK) * away);
+      const sh = 2 * d * Math.tan(FOV * Math.PI / 360);
+      const rZoom = PL_ZOOM_H * sh;
+      const rBase = PL_BASE * sh * mag * born * (1 - (1 - PL_SHRINK) * away);
       const r = (rBase + (rZoom - rBase) * k) * (1 - 0.80 * fin);
 
       planets[i].position.copy(jp);
-      planets[i].scale.setScalar(r > 1e-4 ? r : 1e-4);
-      const m = planets[i].material;
-      m.opacity = born * (1 - (1 - PL_DIM) * away) * (1 - 0.45 * fin);
-      planets[i].visible = m.opacity > 0.004;
+      starS[i] = r > 1e-4 ? r : 1e-4;
+      starO[i] = born * (1 - (1 - PL_DIM) * away) * (1 - 0.45 * fin);
+      planets[i].visible = starO[i] > 0.004;
 
       if (i > 0) { const o = (i - 1) * 6; lp[o + 3] = jp.x; lp[o + 4] = jp.y; lp[o + 5] = jp.z; }
       if (i < planets.length - 1) { const o = i * 6; lp[o] = jp.x; lp[o + 1] = jp.y; lp[o + 2] = jp.z; }
@@ -1176,8 +1210,22 @@ export function createHero(canvas, opts = {}) {
   function drawFrame(dt) {
     updateLaser(dt);
     if (pulseOn) advancePulses(dt);
-    // the spin lives here, not in frame(), so the synchronous advance() shows it turning too
-    if (journeyGrp.visible) for (const p of planets) p.rotation.y += PL_SPIN * dt;
+    // the twinkle lives here, not in frame(), so the synchronous advance() breathes too.
+    // drawFrame is the ONLY writer of the final sprite scale/opacity — updateJourney writes
+    // the bases into starS/starO and this modulates them, so the two can never fight.
+    // …guarded on `planets`, not on journeyGrp.visible: a hidden group that keeps its LAST
+    // visible scale/opacity is invisible on screen but lies in boardStats, and the sprites
+    // must read back the zeroes updateJourney wrote for t4 = 0. Only the clock is gated.
+    if (planets) {
+      if (journeyGrp.visible) starT += dt;
+      const w = 2 * Math.PI * PL_TW_HZ * starT;
+      for (let i = 0; i < planets.length; i++) {
+        const p = Math.sin(w + i * 1.7);                     // fixed per-star phase spread
+        const s = starS[i] * (1 + PL_TW_S * p);
+        planets[i].scale.set(s, s, 1);
+        planets[i].material.opacity = starO[i] * (1 - PL_TW_O + PL_TW_O * p);
+      }
+    }
     if (ring.visible) ring.rotation.z += RING_SPIN * dt;
     placeBeads(meshMain, idxMain);
     placeBeads(meshTrac, idxTrac);
@@ -1239,9 +1287,9 @@ export function createHero(canvas, opts = {}) {
     boardStats() {
       const jrn = {
         t4: jourT, t5: finT, planetIdx, focusLerp: +focusF.toFixed(3),
-        planetLoaded: planets ? planets.filter(p => p.material.map && p.material.map.image).length : 0,
-        planetOpacity: planets ? planets.map(p => +p.material.opacity.toFixed(3)) : null,
-        planetR: planets ? planets.map(p => Math.round(p.scale.x)) : null,
+        starsBuilt: planets ? planets.length : 0,
+        starOpacity: planets ? planets.map(p => +p.material.opacity.toFixed(3)) : null,
+        starScale: planets ? planets.map(p => Math.round(p.scale.x)) : null,
         linkOpacity: +linkMat.opacity.toFixed(3), ringOpacity: +ringMat.opacity.toFixed(3),
       };
       if (!board) return { board: null, failed: boardFail, pending: boardBusy, t: morphT, t3: exitT, ...jrn };
@@ -1314,8 +1362,9 @@ export function createHero(canvas, opts = {}) {
       if (photoMat.map) photoMat.map.dispose();
       photoMat.dispose();
       for (const sp of silkGrp.children) { sp.material.map.dispose(); sp.material.dispose(); }
-      planetGeo.dispose(); linkGeo.dispose(); linkMat.dispose(); ringGeo.dispose(); ringMat.dispose();
-      if (planets) for (const p of planets) { if (p.material.map) p.material.map.dispose(); p.material.dispose(); }
+      linkGeo.dispose(); linkMat.dispose(); ringGeo.dispose(); ringMat.dispose();
+      if (starTex) starTex.dispose();                 // one texture, shared by all four stars
+      if (planets) for (const p of planets) p.material.dispose();
       fabMat.dispose(); starMat.dispose(); glassMat.dispose(); tracMat.dispose();
       beamMat.dispose(); glowMat.dispose(); coreMat.dispose();
       beamTex.dispose(); glowTex.dispose();

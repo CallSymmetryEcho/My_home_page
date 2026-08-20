@@ -126,18 +126,21 @@
   @media (max-width: 760px) { .field-card { bottom: 15vh; max-width: none; right: 20px; } }
   #journey-card .fc-body { margin-top: 14px; }
 
-  /* the zoomed planet's detail card: the SAME card, mirrored to the right edge, because the
-     planet parks left of centre. Text stays left-aligned — a right-ragged block reads as a
+  /* the zoomed star's detail card: the SAME card, mirrored to the right edge, because the
+     star parks left of centre. Text stays left-aligned — a right-ragged block reads as a
      pull-quote, and these are facts. */
   .jn-card {
     /* --tl-gutter, not a vw clamp: the timeline's label is sized in px, so the column it
        needs is the same width on every viewport. The field cards never had to care — they
        live bottom-LEFT — but a right-hand card lands straight on top of it. */
-    /* the vw cap keeps the card off the planet's limb on narrow desktops — the planet is
+    /* the vw cap keeps the card clear of the star's spikes on narrow desktops — the star is
        anchored at a fixed fraction of W, so the two close in on each other as W shrinks */
     left: auto; right: var(--tl-gutter); bottom: max(16vh, 120px); max-width: min(24em, 36vw);
     background: radial-gradient(ellipse 118% 118% at 60% 50%, rgba(0,0,4,0.86) 44%, rgba(0,0,4,0) 80%);
   }
+  /* the crest lives HERE now, not on the star — a star has no logo on it. Height-locked
+     because the four assets are wildly different aspects (a square seal vs wordmarks). */
+  .jn-crest { display: block; height: 34px; width: auto; opacity: .85; margin-bottom: 14px; }
   .jn-deg {
     font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
     color: var(--text-dim); margin: -4px 0 15px;
@@ -383,11 +386,13 @@
 </section>
 
 <!-- Chapter 03. The machine story fades out (tExit) and the fabric hands the stage to FOUR
-     PLANETS — one per school, wired like the Big Dipper. Two acts inside one pane:
+     STARS — one per school, diffraction spikes and all, wired like the Big Dipper, with UT
+     Austin as the Polaris of the chart. Two acts inside one pane:
        overview (t4 0→.45)  the constellation forms; the four projected labels name it
-       zoom     (t4 .45→1)  one planet swells and parks left; its card comes up on the right,
-                            and from there the schools switch HORIZONTALLY (dock/arrows/wheel)
-     while the camera cruises planet-to-planet along the lines. The CV lives on the last card. -->
+       zoom     (t4 .45→1)  the map converges on ONE star, parked left; its card comes up on
+                            the right (crest included), and from there the schools switch
+                            HORIZONTALLY (dock/arrows/wheel) while the view cruises star-to-
+     star along the lines. The CV lives on the last card. -->
 <section class="pane pane-journey" id="journey">
   <article class="field-card" id="journey-card">
     <p class="fc-kicker">CHAPTER 03 — JOURNEY</p>
@@ -399,6 +404,7 @@
   <span class="jr-node">UT AUSTIN · 2021 —</span>
 
   <article class="field-card jn-card" data-n="01" data-name="USTC">
+    <img class="jn-crest" src="image/crest-ustc-mono.png" alt="USTC">
     <p class="fc-kicker">STOP 01 — HEFEI</p>
     <h2 class="fc-title">USTC</h2>
     <p class="jn-deg">B.S. Material Physics · 2017–2021</p>
@@ -407,6 +413,7 @@
   </article>
 
   <article class="field-card jn-card" data-n="02" data-name="BERKELEY">
+    <img class="jn-crest" src="image/crest-berkeley-mono.png" alt="UC Berkeley">
     <p class="fc-kicker">STOP 02 — BERKELEY</p>
     <h2 class="fc-title">UC Berkeley</h2>
     <p class="jn-deg">Summer exchange · 2019</p>
@@ -415,6 +422,7 @@
   </article>
 
   <article class="field-card jn-card" data-n="03" data-name="BROWN">
+    <img class="jn-crest" src="image/crest-brown-mono.png" alt="Brown">
     <p class="fc-kicker">STOP 03 — PROVIDENCE</p>
     <h2 class="fc-title">Brown</h2>
     <p class="jn-deg">Research intern · 2020</p>
@@ -423,6 +431,7 @@
   </article>
 
   <article class="field-card jn-card" data-n="04" data-name="UT AUSTIN">
+    <img class="jn-crest" src="image/crest-utaustin-mono.png" alt="UT Austin">
     <p class="fc-kicker">STOP 04 — AUSTIN</p>
     <h2 class="fc-title">UT Austin</h2>
     <p class="jn-deg">Ph.D., Texas Materials Institute · 2021 —</p>
@@ -432,8 +441,8 @@
   </article>
 </section>
 
-<!-- Chapter 04. The outro: the camera pulls far back, the planets shrink to star-points
-     drifting up-right, one orbit ring turns, and the page ends on the name. -->
+<!-- Chapter 04. The outro: the camera pulls far back, the stars shrink to points drifting
+     up-right, one orbit ring turns, and the page ends on the name. -->
 <section class="pane pane-contact" id="contact">
   <div class="outro" id="contact-block">
     <img src="image/logo-bin-mono.png" alt="">
@@ -528,7 +537,7 @@ try {
   const JOVER = 1.0, JZOOM = 0.6, JOUR = 2.2, CFIN = 0.3;
   const A0 = M0 + MORPH;      // 3.8 — the board docks into the machine from here
   const X0 = A0 + ARM;        // 4.6 — the machine story is told; the exit hands the sheet back
-  const J0 = X0 + EXIT;       // 5.0 — the planets
+  const J0 = X0 + EXIT;       // 5.0 — the stars
   const C0 = J0 + JOUR;       // 7.2 — the outro (7.5 = the last pixel of the document)
   const machinesCard = document.getElementById('machines-card');
   const journeyCard = document.getElementById('journey-card');
@@ -577,7 +586,7 @@ try {
   const armAt = () => c01((s - A0 * innerHeight) / (ARM * innerHeight));
   const exitAt = () => c01((s - X0 * innerHeight) / (EXIT * innerHeight));
   // two-piece ramp, then a HOLD: the last 0.6H of the journey pane is where you browse the
-  // planets horizontally, so t4 must sit still at 1 there instead of running out of scroll.
+  // stars horizontally, so t4 must sit still at 1 there instead of running out of scroll.
   const jourAt = () => {
     const j = (s - J0 * innerHeight) / innerHeight;
     return j <= 0 ? 0 : j < JOVER ? 0.45 * j / JOVER
@@ -586,15 +595,15 @@ try {
   const finAt = () => c01((s - C0 * innerHeight) / (CFIN * innerHeight));
   const mAt = () => (qMorph !== null ? qMorph : morphAt());   // the live tMorph, QA pin included
   const jAt = () => (qJour !== null ? qJour : jourAt());
-  // the journey has no formation any more — it is planets. Only the fields still feed physics.
+  // the journey has no formation any more — it is stars. Only the fields still feed physics.
   const ptsFor = () => (vSec === FSEC ? GEN[cards[fieldIdx].dataset.gen](innerWidth, innerHeight) : null);
 
-  // the labels ride the real projection of their own planet: the sheet is tilted, the camera
+  // the labels ride the real projection of their own star: the sheet is tilted, the camera
   // dollies home across the exit and parallaxes with the pointer, so a fixed percentage would
-  // drift off. hero.nodes is scene3d's own planet table, so a label cannot land on the wrong
-  // one; the n̂ offset is the planet's depth stagger, projected at the same depth it sits at.
-  // The chains only ever leave a node up-right, so the label goes below-right of the planet,
-  // clear of its own disc (which scales with H — hence the viewport-relative offsets).
+  // drift off. hero.nodes is scene3d's own star table, so a label cannot land on the wrong
+  // one; the n̂ offset is the star's depth stagger, projected at the same depth it sits at.
+  // The chains only ever leave a node up-right, so the label goes below-right of the star,
+  // clear of its own spikes (which scale with H — hence the viewport-relative offsets).
   const NODES = hero.nodes;
   function placeLabels() {
     const dx = 0.050 * innerHeight, dy = 0.034 * innerHeight;
@@ -607,7 +616,7 @@ try {
 
   // the scrubbed chapters, in full: five numbers and their cards. Called from the scroll tick
   // and from the QA hook, so both paths run exactly the same visual update.
-  // ORDER MATTERS: setJourney first, because t4 is what decides who owns λ (the planets keep
+  // ORDER MATTERS: setJourney first, because t4 is what decides who owns λ (the stars keep
   // the beads released for the rest of the page) — every later setter re-derives on top of it.
   function scrub() {
     const tm = mAt(), tx = qExit !== null ? qExit : exitAt(), tj = jAt();
@@ -617,7 +626,7 @@ try {
     hero.setMorph(tm);
     hero.setArm(qArm !== null ? qArm : armAt());
     machinesCard.classList.toggle('active', tm > 0.75 && tx < 0.2);
-    const z = tj > 0.75;                        // zoomed: the card and the planet dock come up
+    const z = tj > 0.75;                        // zoomed: the card and the star dock come up
     if (z !== zoomed) { zoomed = z; render(); }
     // the projected labels name the OVERVIEW; once the zoom starts the card takes over
     const over = vSec === JSEC && tj > 0.08 && tj < 0.55;
@@ -656,7 +665,7 @@ try {
     // retarget — and a retarget there would queue a pending word swap that fires later, once
     // the hold is handed back — but NOT when entering from the fields, where the boundary at
     // 2H is exactly where tMorph is 0 and the morph would refuse to hold.
-    // JOURNEY and CONTACT are releases with no re-ramp: the beads shrink out and the planets
+    // JOURNEY and CONTACT are releases with no re-ramp: the beads shrink out and the stars
     // take the stage. scene3d keeps the hold on for as long as t4 > 0, so this is belt-and-
     // braces for a page that deep-links straight into either one.
     if (i === MSEC) { if (mAt() > 0.002) PHY.holdRelease(true); }
@@ -673,8 +682,8 @@ try {
     render();
   }
 
-  // the horizontal axis of the journey. scene3d eases its focus toward it, so the camera
-  // CRUISES along the constellation line to the next planet instead of cutting.
+  // the horizontal axis of the journey. scene3d eases its focus toward it, so the view
+  // CRUISES along the constellation line to the next star instead of cutting.
   function setPlanet(j) {
     j = clamp(j, jnCards.length - 1);
     if (j === planetIdx) return;
@@ -765,7 +774,7 @@ try {
   //   __hero.section(3); __hero.advance(3)          // the machine put away, zoomed on UT Austin
   //   __hero.journey(0.3); __hero.advance(1)        // the overview, forming
   //   __hero.planet(0); __hero.advance(1)           // cruise back down the line to USTC
-  //   __hero.section(4); __hero.advance(2)          // the finale: ring up, planets receding
+  //   __hero.section(4); __hero.advance(2)          // the finale: ring up, stars receding
   //   __hero.exit(0.5); __hero.advance(1)           // mid-exit: the board is half handed back
   const adv = __hero.advance;
   __hero.advance = t => {
