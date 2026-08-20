@@ -9,7 +9,7 @@ export const CONFIG = {
   kT: 1.2,            // temperature (slider units, scaled by kTScale internally)
   kTScale: 60,        // slider-unit -> px^2/s^2
   gamma: 2.5,         // Langevin drag [1/s]
-  kTrap: 18,          // harmonic trap stiffness [1/s^2]
+  kTrap: 28,          // harmonic trap stiffness [1/s^2]
   repelR: 6,          // pair soft-repulsion radius [px]
   repelE: 600,        // pair repulsion strength [px/s^2]
   mouseR: 45,         // pointer field-source range [px] (v1 had 80 — too wide to aim)
@@ -20,7 +20,15 @@ export const CONFIG = {
   // |-grad V| peaks at r = R/sqrt(2) with magnitude sqrt(2)·e^(-1/2)·|A|/R (~24k px/s^2).
   mouseA: -1.3e6,     // gaussian well amplitude A [px^2/s^2] — negative = attractive
   pesVref: 2.5e4,     // V normalisation for the fabric relief (v1 5e4 — wells too shallow)
-  meltTime: 2.6,      // s of trap-off after a click
+
+  // --- field ramp λ(t): the potential fades IN and matter follows it.
+  // gas (flat sheet, λ=0) -> ramp (λ 0->1, smoothstep) -> text (λ=1)
+  // click -> melt (λ decays, τ=meltTau) -> ramp again, faster.
+  gasTime: 1.2,       // s of Brownian gas on a dead-flat sheet before the field appears
+  rampTime: 1.8,      // s of the first λ: 0 -> 1 ramp
+  rampTime2: 1.0,     // s of the re-ramp after a melt (recrystallisation is quicker)
+  meltTime: 2.6,      // s of field-off after a click
+  meltTau: 0.25,      // λ decay time constant during melt [s]
   pulseKT: 9,         // laser-pulse heating factor on melt (decays)
   word: 'BIN LIAN',
   wordY: 0.36,        // word center, fraction of viewport height
@@ -34,17 +42,14 @@ export const CONFIG = {
   zInit: 20,          // |z| spread at injection [px]
 
   // --- renderer knobs (the GR "rubber sheet"), parked here so every tunable lives in one place
-  fabricRelief: 0.115, // dip depth of a letter well, as a fraction of viewport H
-  fabricSpan: 2.0,     // sheet span / viewport along x
-  // the sheet's physics-y window: it starts fabricYMin·H (z = +0.35·H, just in front of
-  // the name's shadow) and runs fabricYSpan·H toward deep space behind the name — so the
-  // sheet ends before the copy zone instead of ramming huge cells into the near camera
-  fabricYMin: 0.15,
-  fabricYSpan: 1.25,
-  fabricBaseY: 0.10,   // sheet base height in the scene [·H] — just under the letters
-  fabricU0: 1.1,       // well width: dip ∝ exp(-u/U0) with u = V/pesVref
+  fabricRelief: 0.085, // dip depth of a letter well, as a fraction of viewport H
+  fabricSpan: 1.35,    // sheet lattice span / viewport, symmetric about the viewport centre
+  fabricU0: 0.8,       // well width: dip ∝ exp(-u/U0) with u = V/pesVref
   fabricClamp: 2.3,    // a cursor well may dip up to this × a letter well
-  hover: 11,           // legacy bead lift above the sheet [px]
+  // every bead has mass: each one splats a small gaussian dimple into the sheet, so the
+  // gas phase reads as a flat sheet crawling with dents and the cursor is just a bigger one
+  beadDent: 0.13,      // per-bead dimple depth, as a fraction of a letter well
+  beadDentR: 17,       // per-bead dimple gaussian radius [px]
 };
 
 const N = CONFIG.N;
@@ -57,17 +62,22 @@ const tracer = new Uint8Array(N);     // 1 = amber tracer particle
 export const state = { px, py, pz, vx, vy, vz, hasT, tracer };
 
 // Where fillPotential() samples: world x of column gx is x0 + gx*dx, y of row gy is
-// y0 + gy*dy. The lattice spans fabricSpan·W by 1.5·H, centred on the viewport, so the
+// y0 + gy*dy. The lattice spans fabricSpan·(W by H), centred on the viewport box, so the
 // renderer's fabric line lattice lines up with it vertex for vertex.
 export const grid = { w: 0, h: 0, x0: 0, y0: 0, dx: 0, dy: 0 };
 
 let W = 0, H = 0;
-let mode = 'gas';                     // gas -> text; click: melt -> text
+let mode = 'gas';                     // gas -> ramp -> text; click: melt -> ramp -> text
 let modeT = 0;                        // s spent in current mode
+let lambda = 0;                       // field ramp: 0 = no potential, 1 = full traps
+let rampT = CONFIG.rampTime;          // duration of the ramp we are in / heading into
+let meltL0 = 0;                       // λ at the moment of the melt click
 let pulse = 0;                        // decaying laser-pulse heat
 let mx = -1e9, my = -1e9;             // pointer, physics coords
 let glyphPts = [];
 let distF = new Float32Array(0);      // squared distance to the nearest glyph site, per grid cell
+
+const smoothstep = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 
 // Box-Muller gaussian
 let spare = null;
@@ -193,9 +203,9 @@ export function init(w, h, gridW, gridH) {
 
 export function resize(w, h) {
   W = Math.max(1, w); H = Math.max(1, h);
-  const sw = W * CONFIG.fabricSpan, sh = H * CONFIG.fabricYSpan;
+  const sw = W * CONFIG.fabricSpan, sh = H * CONFIG.fabricSpan;
   grid.dx = sw / (grid.w - 1); grid.dy = sh / (grid.h - 1);
-  grid.x0 = (W - sw) / 2; grid.y0 = H * CONFIG.fabricYMin;   // x centred; y starts at the name's shadow
+  grid.x0 = (W - sw) / 2; grid.y0 = (H - sh) / 2;   // symmetric about the viewport box
   for (let i = 0; i < N; i++) {                     // a shrink can leave particles outside the box
     if (px[i] < 0 || px[i] > W) px[i] = Math.random() * W;
     if (py[i] < 0 || py[i] > H) py[i] = Math.random() * H;
@@ -208,15 +218,26 @@ const fx = new Float32Array(N), fy = new Float32Array(N);
 
 export function step(dt) {
   modeT += dt;
-  if (mode === 'gas' && modeT > 2.2) { mode = 'text'; modeT = 0; }
-  if (mode === 'melt' && modeT > CONFIG.meltTime) { mode = 'text'; modeT = 0; }
+  // field ramp: the potential appears first, matter answers it.
+  if (mode === 'gas') {
+    lambda = 0;
+    if (modeT > CONFIG.gasTime) { mode = 'ramp'; modeT = 0; }
+  } else if (mode === 'ramp') {
+    lambda = smoothstep(modeT / rampT);
+    if (modeT >= rampT) { mode = 'text'; modeT = 0; lambda = 1; }
+  } else if (mode === 'melt') {
+    lambda = meltL0 * Math.exp(-modeT / CONFIG.meltTau);
+    if (modeT > CONFIG.meltTime) { mode = 'ramp'; modeT = 0; rampT = CONFIG.rampTime2; lambda = 0; }
+  } else {
+    lambda = 1;                  // 'text'
+  }
   pulse *= Math.exp(-dt / 0.45); // laser pulse cools off
 
   fx.fill(0); fy.fill(0);
 
-  // harmonic traps (the "field"): only in text mode
-  if (mode === 'text') {
-    const k = CONFIG.kTrap;
+  // harmonic traps (the "field"), scaled by the ramp — same λ the sheet's wells use
+  if (lambda > 0) {
+    const k = CONFIG.kTrap * lambda;
     for (let i = 0; i < N; i++) if (hasT[i]) {
       fx[i] -= k * (px[i] - tx[i]);
       fy[i] -= k * (py[i] - ty[i]);
@@ -266,18 +287,20 @@ export function setPointer(x, y) { mx = x; my = y; }
 export function clearPointer() { mx = -1e9; my = -1e9; }
 
 export function melt() {
-  if (mode !== 'text') return;
+  if (mode !== 'text' && mode !== 'ramp') return;
+  meltL0 = lambda;
   mode = 'melt'; modeT = 0;
-  pulse = CONFIG.pulseKT;          // laser pulse-heating, then traps off -> melts
+  pulse = CONFIG.pulseKT;          // laser pulse-heating, and λ collapses -> melts
 }
 
 export function setKT(v) { CONFIG.kT = v; }
 export function getMode() { return mode; }
+export function getLambda() { return lambda; }
 
 // The exact V the forces above see, sampled on the grid lattice.
 // out must be Float32Array(grid.w * grid.h), row-major.
 export function fillPotential(out) {
-  const trap = mode === 'text' ? CONFIG.kTrap / 2 : 0;   // V_trap = 1/2 k d^2
+  const trap = CONFIG.kTrap * lambda / 2;   // V_trap = 1/2 (λk) d^2 — same λ as the force
   const live = mx > -1e8, R2 = CONFIG.mouseR * CONFIG.mouseR, A = CONFIG.mouseA;
   for (let gy = 0; gy < grid.h; gy++) {
     const y = grid.y0 + gy * grid.dy, row = gy * grid.w;

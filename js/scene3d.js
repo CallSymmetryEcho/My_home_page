@@ -1,17 +1,18 @@
-// scene3d.js — Three.js layer over physics.js: deep space + a general-relativity
-// "rubber sheet". Two different projections out of the one 2D physics box:
+// scene3d.js — Three.js layer over physics.js: deep space + ONE general-relativity
+// "rubber sheet" that everything lives on. There is no separate name plane any more:
+// the potential surface IS the world, tilted toward the camera at the classic GR-demo
+// table angle so the word stays readable while normal-direction dips still project.
 //
-//   BEADS / NAME — a tilted plane floating above the origin, leaning back TILT from
-//     vertical so it very nearly faces the camera. That is what makes the word
-//     legible: it is read head-on, not foreshortened along the floor.
-//         p = C + û·(x − W/2)·S − v̂·(y − H·wordY)·S·Sv + n̂·pz
-//     with û = +X, v̂ = (0, cosθ, −sinθ), n̂ = û×v̂ (toward the camera). pz bobs the
-//     beads out of the plane.
+//   SHEET FRAME — û = (1,0,0), up-slope ŵ = (0, sinφ, −cosφ), normal n̂ = (0, cosφ, sinφ)
+//   (n̂ points up and toward the camera; û × ŵ = n̂).
+//     sheet(x, y) = Cs + û·(x − W/2)·S + ŵ·(H/2 − y)·S
+//   with Cs = (0, SHEET_Y·H, 0). Height h (always ≤ 0) displaces along n̂, i.e. INTO
+//   the sheet, away from the camera.
 //
-//   FABRIC — the spacetime sheet on the ground below, sampling the SAME potential
-//     through the old map, physics (x, y) → ground (x − W/2, H/2 − y). So each well
-//     sits under the shadow of the letter that made it: mass above, curvature below.
-//     Drawn as quad grid lines only — the curvature of the lines IS the data.
+//   FABRIC   — the lattice itself, drawn as quad grid lines. h = −(field wells + bead
+//              dents); the curvature of the lines IS the data.
+//   BEADS    — roll ON the sheet: sheet(x,y) + n̂·(h_local + r + 0.5·pz). Every bead
+//              also dents the sheet under itself, so mass and curvature are one object.
 
 import * as THREE from 'three';
 import { EffectComposer } from './vendor/jsm/postprocessing/EffectComposer.js';
@@ -21,11 +22,13 @@ import { OutputPass } from './vendor/jsm/postprocessing/OutputPass.js';
 import * as PHY from './physics.js';
 
 const GW = 121, GH = 61;                  // potential grid == fabric line lattice
-const TILT = 28 * Math.PI / 180;          // plane lean from vertical
-const VY = Math.cos(TILT), VZ = -Math.sin(TILT);   // v̂ = (0, VY, VZ)
-const NY = -VZ, NZ = VY;                  // n̂ = û × v̂ = (0, sinθ, cosθ)
-const PLANE_S = 0.55;                     // plane scale — the word lands at ~65% frame width
-const PLANE_V = 0.9;                      // extra squash along the plane's up axis
+const SHEET_TILT = 55 * Math.PI / 180;    // sheet tilt from horizontal (55°: more face-on, word reads)
+const SINP = Math.sin(SHEET_TILT), COSP = Math.cos(SHEET_TILT);
+const PLANE_S = 0.66;                     // physics px -> world units; word ≈ 70% frame width
+const SHEET_Y = 0.16;                     // sheet centre height [·H]
+const CAM_Y = 0.52, CAM_Z = 1.30;         // camera position [·H], looking at the sheet centre
+const FOV = 34;
+const BEAD_R = 2.6;                       // bead geometry radius [world units]
 const FADE0 = 0.45;                       // sheet edge fade starts at this normalised radius
 const C = PHY.CONFIG;
 
@@ -47,9 +50,9 @@ export function createHero(canvas) {
   PHY.init(W, H, GW, GH);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(34, W / H, 1, 40000);
+  const camera = new THREE.PerspectiveCamera(FOV, W / H, 1, 40000);
   const look = new THREE.Vector3();
-  let baseY = 0, baseZ = 0, planeY = 0;
+  let baseY = 0;
 
   // ------------------------------------------------------------ environment + lights
   // dark-studio environment: a black void with a few small hot panels, so the glass
@@ -124,44 +127,103 @@ export function createHero(canvas) {
   scene.add(fabric);
 
   const vbuf = new Float32Array(GW * GH);   // V from physics
-  const hgt = new Float32Array(GW * GH);    // current sheet Y, eased toward the target
+  const dent = new Float32Array(GW * GH);   // per-bead dimples, in letter-well units
+  const hgt = new Float32Array(GW * GH);    // current height along n̂, eased toward the target
   const fade = new Float32Array(GW * GH);   // static edge fade, rebuilt on resize
   // a whisper of ice-cyan (#bfeeee) in the deepest wells, linear-light
   const ICE = new THREE.Color().setRGB(0xbf / 255, 0xee / 255, 0xee / 255, THREE.SRGBColorSpace);
 
+  // ------------------------------------------------------------ bead dents ("every bead has mass")
+  // One k×k gaussian kernel, built on resize and splatted at each bead's nearest lattice
+  // point. Cut off at 1.5R (the gaussian is down to e^-2.25 there) so the dimple base
+  // does not show the kernel's square edge. O(N·k²), allocation-free.
+  let kern = new Float32Array(0), kx = 1, ky = 1, kw = 3;
+  function buildKernel() {
+    const g = PHY.grid, R2 = C.beadDentR * C.beadDentR;
+    kx = Math.max(1, Math.ceil(1.5 * C.beadDentR / g.dx));
+    ky = Math.max(1, Math.ceil(1.5 * C.beadDentR / g.dy));
+    kw = 2 * kx + 1;
+    kern = new Float32Array(kw * (2 * ky + 1));
+    for (let j = -ky; j <= ky; j++) for (let i = -kx; i <= kx; i++) {
+      const dx = i * g.dx, dy = j * g.dy;
+      kern[(j + ky) * kw + (i + kx)] = C.beadDent * Math.exp(-(dx * dx + dy * dy) / R2);
+    }
+  }
+  function splatDents() {
+    dent.fill(0);
+    const g = PHY.grid, px = PHY.state.px, py = PHY.state.py;
+    for (let n = 0; n < C.N; n++) {
+      const cx = Math.round((px[n] - g.x0) / g.dx), cy = Math.round((py[n] - g.y0) / g.dy);
+      for (let j = -ky; j <= ky; j++) {
+        const gy = cy + j;
+        if (gy < 0 || gy >= GH) continue;
+        const row = gy * GW, krow = (j + ky) * kw + kx;
+        for (let i = -kx; i <= kx; i++) {
+          const gx = cx + i;
+          if (gx < 0 || gx >= GW) continue;
+          dent[row + gx] += kern[krow + i];
+        }
+      }
+    }
+  }
+
   function updateFabric() {
     PHY.fillPotential(vbuf);
-    const text = PHY.getMode() === 'text';
+    splatDents();
+    const lam = PHY.getLambda();
     const relief = C.fabricRelief * H, cl = C.fabricClamp;
     const inv = 1 / (C.pesVref * C.fabricU0);
+    // fillPotential's trap term already carries λ. Dividing it back out of the exponent
+    // keeps the well's WIDTH fixed while λ scales only its DEPTH — the wells fade in
+    // where the letters are instead of growing outward from points.
+    const wellInv = lam > 1e-3 ? inv / lam : 0;
     // the trap is ~50x pesVref deep, so exp(-V/…) saturates and punches a flat-bottomed
     // cylinder. Log-compress the V<0 side instead, normalised so the trap centre lands
     // exactly on the clamp: a round funnel, and the clamp is touched, never ridden.
     const kNeg = (cl - 1) / Math.log1p(Math.abs(C.mouseA) / C.pesVref);
-    const sheetY = C.fabricBaseY * H;   // the sheet floats just under the letters
+    const g = PHY.grid, cy0 = SHEET_Y * H;
     const p = fabGeo.attributes.position.array, col = fabGeo.attributes.color.array;
-    for (let k = 0; k < vbuf.length; k++) {
-      const V = vbuf[k];
-      // letter wells: dip = exp(-u/U0), 1 on a glyph -> 0 in the far field (asymptotically
-      // FLAT, no bathtub). gas/melt have no glyph sites, so this half is simply absent.
-      // cursor well: the attractive trap drives V negative, and only that adds depth —
-      // which makes the far field flat in every mode with no baseline bookkeeping.
-      let e = (text ? Math.exp(-(V > 0 ? V : 0) * inv) : 0)
-            + (V < 0 ? kNeg * Math.log1p(-V / C.pesVref) : 0);
-      if (e > cl) e = cl;
-      // ease, so mode switches (gas -> text, click -> melt) grow the wells instead of popping
-      const y = hgt[k] += (-relief * e - hgt[k]) * 0.12;
-      p[k * 3 + 1] = sheetY + y;
+    for (let gy = 0; gy < GH; gy++) {
+      // the sheet's own frame: up-slope offset is constant along a lattice row
+      const w = (H / 2 - (g.y0 + gy * g.dy)) * PLANE_S;
+      const rowY = cy0 + w * SINP, rowZ = -w * COSP, row = gy * GW;
+      for (let gx = 0; gx < GW; gx++) {
+        const k = row + gx, V = vbuf[k];
+        // letter wells: dip = λ·exp(-u/U0), 1 on a glyph -> 0 in the far field (asymptotically
+        // FLAT, no bathtub). λ=0 in the gas phase, so this half is simply absent then.
+        // cursor well: the attractive trap drives V negative, and only that adds depth —
+        // which makes the far field flat in every mode with no baseline bookkeeping.
+        // bead dents: every particle's own little mass.
+        let e = (lam > 1e-3 ? lam * Math.exp(-(V > 0 ? V : 0) * wellInv) : 0)
+              + (V < 0 ? kNeg * Math.log1p(-V / C.pesVref) : 0)
+              + dent[k];
+        if (e > cl) e = cl;
+        // ease, so λ steps and mode switches grow the wells instead of popping
+        const h = hgt[k] += (-relief * e - hgt[k]) * 0.12;
+        p[k * 3 + 1] = rowY + h * COSP;    // displace along n̂ = (0, cosφ, sinφ)
+        p[k * 3 + 2] = rowZ + h * SINP;
 
-      const d = -y / relief;                       // 0 flat · 1 letter well · up to cl in the trap
-      const b = 0.38 * fade[k] * (1 + 1.5 * d);    // wells glow, the rim fades into the void
-      const t = 0.5 * (d < 1 ? d : 1);
-      col[k * 3] = b * (1 + (ICE.r - 1) * t);
-      col[k * 3 + 1] = b * (1 + (ICE.g - 1) * t);
-      col[k * 3 + 2] = b * (1 + (ICE.b - 1) * t);
+        const d = -h / relief;                       // 0 flat · 1 letter well · up to cl in the trap
+        const b = 0.38 * fade[k] * (1 + 0.7 * d);    // wells glow gently — the beads carry the word
+        const t = 0.5 * (d < 1 ? d : 1);
+        col[k * 3] = b * (1 + (ICE.r - 1) * t);
+        col[k * 3 + 1] = b * (1 + (ICE.g - 1) * t);
+        col[k * 3 + 2] = b * (1 + (ICE.b - 1) * t);
+      }
     }
     fabGeo.attributes.position.needsUpdate = true;
     fabGeo.attributes.color.needsUpdate = true;
+  }
+
+  // bilinear sample of the eased height field, so a bead sits IN its own dimple
+  function heightAt(x, y) {
+    const g = PHY.grid;
+    let fx = (x - g.x0) / g.dx, fy = (y - g.y0) / g.dy;
+    fx = fx < 0 ? 0 : fx > GW - 1.001 ? GW - 1.001 : fx;
+    fy = fy < 0 ? 0 : fy > GH - 1.001 ? GH - 1.001 : fy;
+    const i = fx | 0, j = fy | 0, u = fx - i, v = fy - j, r = j * GW + i;
+    const a = hgt[r], b = hgt[r + 1], c2 = hgt[r + GW], d2 = hgt[r + GW + 1];
+    return (a + (b - a) * u) * (1 - v) + (c2 + (d2 - c2) * u) * v;
   }
 
   // ------------------------------------------------------------ beads
@@ -171,7 +233,7 @@ export function createHero(canvas) {
   const scl = new Float32Array(N);
   for (let i = 0; i < N; i++) scl[i] = 0.85 + Math.random() * 0.30;
 
-  const beadGeo = new THREE.SphereGeometry(2.6, 24, 16);
+  const beadGeo = new THREE.SphereGeometry(BEAD_R, 24, 16);
   // less transmission (on black it transmits black), more clearcoat + env: sparkling
   // droplets that catch the bloom, not matte marbles
   const glassMat = new THREE.MeshPhysicalMaterial({
@@ -193,14 +255,18 @@ export function createHero(canvas) {
   const M4 = new THREE.Matrix4();
   function placeBeads(mesh, idx) {
     const { px, py, pz } = PHY.state;
-    const sv = PLANE_S * PLANE_V, cx = W / 2, cy = H * C.wordY;
+    const cy0 = SHEET_Y * H, cx = W / 2, cy = H / 2;
     for (let k = 0; k < idx.length; k++) {
       const i = idx[k], s = scl[i];
-      const a = (px[i] - cx) * PLANE_S;        // along û
-      const b = -(py[i] - cy) * sv;            // along v̂ (screen-y is inverted)
-      const z = pz[i];                         // along n̂, out of the plane
+      const u = (px[i] - cx) * PLANE_S;         // along û
+      const w = (cy - py[i]) * PLANE_S;         // along ŵ (screen-y is inverted)
+      // along n̂: rest on the local sheet height, lifted by the bead's own radius, plus
+      // the thermal z bob. Beads therefore ride their own dimples and roll into the wells.
+      // ride the wells only partially: full ride drags the glyph shape down with the
+      // fabric and smears the word; 0.35 keeps the visual coupling without the warp
+      const n = heightAt(px[i], py[i]) * 0.35 + BEAD_R * s + 0.5 * pz[i];
       M4.makeScale(s, s, s);
-      M4.setPosition(a, planeY + b * VY + z * NY, b * VZ + z * NZ);
+      M4.setPosition(u, cy0 + w * SINP + n * COSP, -w * COSP + n * SINP);
       mesh.setMatrixAt(k, M4);
     }
     mesh.instanceMatrix.needsUpdate = true;
@@ -218,35 +284,36 @@ export function createHero(canvas) {
   composer.addPass(outPass);
 
   // ------------------------------------------------------------ layout
-  const plane = new THREE.Plane();   // the bead/name plane, for pointer picking
-  const nrm = new THREE.Vector3(0, NY, NZ);
+  const plane = new THREE.Plane();   // the tilted sheet, for pointer picking
+  const nrm = new THREE.Vector3(0, COSP, SINP);
   const ctr = new THREE.Vector3();
 
   function relayout() {
-    // static half of the fabric: x and z never move between resizes, only Y animates
+    // static half of the fabric: only the n̂ displacement animates, so x is fixed here
+    // and the row's ŵ offset is recomputed cheaply per row in updateFabric.
     const g = PHY.grid, p = fabGeo.attributes.position.array;
-    const halfX = (GW - 1) * g.dx / 2, halfZ = (GH - 1) * g.dy / 2;
-    const midX = g.x0 + halfX - W / 2, midZ = H / 2 - (g.y0 + halfZ);
+    // the lattice is symmetric about the viewport centre, so ±half is the rim
+    const halfU = (GW - 1) * g.dx * PLANE_S / 2, halfW = (GH - 1) * g.dy * PLANE_S / 2;
     for (let gy = 0; gy < GH; gy++) {
-      const sz = H / 2 - (g.y0 + gy * g.dy);
+      const w = (H / 2 - (g.y0 + gy * g.dy)) * PLANE_S;
       for (let gx = 0; gx < GW; gx++) {
-        const k = gy * GW + gx, sx = g.x0 + gx * g.dx - W / 2;
-        p[k * 3] = sx; p[k * 3 + 2] = sz;
-        const r = Math.hypot((sx - midX) / halfX, (sz - midZ) / halfZ);
+        const k = gy * GW + gx, u = (g.x0 + gx * g.dx - W / 2) * PLANE_S;
+        p[k * 3] = u;
+        const r = Math.hypot(u / halfU, w / halfW);
         const s = Math.min(1, Math.max(0, (r - FADE0) / (1 - FADE0)));
         fade[k] = 1 - s * s * (3 - 2 * s);   // smoothstep to 0 at the rim
       }
     }
     fabGeo.attributes.position.needsUpdate = true;
+    buildKernel();
 
-    // frame BOTH the name and the fabric wells beneath it: name low enough that its
-    // shadow region of the sheet is well inside the frame
-    planeY = 0.235 * H;
-    baseY = 0.31 * H; baseZ = 1.38 * H;
-    look.set(0, 0.155 * H, 0);
-    camera.position.set(0, baseY, baseZ);
+    // the sheet fills the frame; the word (physics y = wordY·H, up-slope of centre)
+    // reads at ~70% frame width and sits in the upper half.
+    baseY = CAM_Y * H;
+    look.set(0, SHEET_Y * H, 0);
+    camera.position.set(0, baseY, CAM_Z * H);
     camera.lookAt(look);
-    ctr.set(0, planeY, 0);
+    ctr.set(0, SHEET_Y * H, 0);
     plane.setFromNormalAndCoplanarPoint(nrm, ctr);
 
     key.position.set(0.5 * H, 1.0 * H, 1.4 * H);
@@ -257,8 +324,8 @@ export function createHero(canvas) {
   relayout();
 
   // ------------------------------------------------------------ pointer
-  // Beads live on the tilted plane, so the trap has to be picked there — pick the ground
-  // and the cursor would grab beads it is nowhere near on screen.
+  // Everything lives on the sheet, so raycast the sheet's own (undeformed) plane and
+  // invert the sheet map back to physics coords.
   const ndc = new THREE.Vector2(), ray = new THREE.Raycaster(), hit = new THREE.Vector3();
 
   function onMove(e) {
@@ -266,8 +333,8 @@ export function createHero(canvas) {
     ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
     if (ray.ray.intersectPlane(plane, hit)) {
-      const b = (hit.y - planeY) * VY + hit.z * VZ;    // (hit − centre)·v̂
-      PHY.setPointer(W / 2 + hit.x / PLANE_S, H * C.wordY - b / (PLANE_S * PLANE_V));
+      const w = (hit.y - SHEET_Y * H) * SINP - hit.z * COSP;   // (hit − Cs)·ŵ
+      PHY.setPointer(W / 2 + hit.x / PLANE_S, H / 2 - w / PLANE_S);
     } else PHY.clearPointer();
   }
   const onLeave = () => { PHY.clearPointer(); ndc.set(0, 0); };
@@ -335,6 +402,7 @@ export function createHero(canvas) {
     clearPointer: () => PHY.clearPointer(),
     melt: () => PHY.melt(),
     mode: () => PHY.getMode(),
+    lambda: () => PHY.getLambda(),
   };
 
   if (reduced) {
