@@ -1,0 +1,29 @@
+{
+ "blogUrl": "https://callsymmetryecho.github.io",
+ "posts": [
+  {
+   "title": "构建深度工作 Flow",
+   "date": "2025-06-03",
+   "excerpt": "参考视频:  4步建立改变人生的「深度工作系统」  https://www.bilibili.com/video/BV1TLE8z8EXv/        什么是 Deep Work Deep work 是你花费在创造真…",
+   "url": "https://callsymmetryecho.github.io/2025/06/03/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/%E6%9E%84%E5%BB%BA%E6%B7%B1%E5%BA%A6%E5%B7%A5%E4%BD%9C%20Flow/"
+  },
+  {
+   "title": "极大似然估计问题与线性神经网络",
+   "date": "2024-01-01",
+   "excerpt": "正态分布与平方损失   接下来，我们通过对噪声分布的假设来解读平方损失目标函数。   正态分布和线性回归之间的关系很密切。 正态分布（normal distribution），也称为 高斯分布 （Gaussian dis…",
+   "url": "https://callsymmetryecho.github.io/2024/01/01/%E6%8A%80%E6%9C%AF%E7%AC%94%E8%AE%B0/%E6%9E%81%E5%A4%A7%E4%BC%BC%E7%84%B6%E4%BC%B0%E8%AE%A1%E9%97%AE%E9%A2%98%E4%B8%8E%E7%BA%BF%E6%80%A7%E7%A5%9E%E7%BB%8F%E7%BD%91%E7%BB%9C/"
+  },
+  {
+   "title": "交叉熵的直观理解",
+   "date": "2024-12-31",
+   "excerpt": "信息论基础  信息论 （information theory）涉及编码、解码、发送以及尽可能简洁地处理信息或数据。     熵 信息论的核心思想是量化数据中的信息内容。 在信息论中，该数值被称为分布$P$的 熵 （ent…",
+   "url": "https://callsymmetryecho.github.io/2024/12/31/%E6%8A%80%E6%9C%AF%E7%AC%94%E8%AE%B0/%E4%BA%A4%E5%8F%89%E7%86%B5%E7%9A%84%E7%9B%B4%E8%A7%82%E7%90%86%E8%A7%A3/"
+  },
+  {
+   "title": "如何紧急修复，当你在linux中干穿了libc丢了libc.so.6,ld-linux-x86-64.so.2其中一个",
+   "date": "2024-12-31",
+   "excerpt": "关键是 在绝对路径命令面前加上/lib/x86_64 linux gnu/ld 2.28.so 即手动预加载libc文件，然后基本上的命令都可以用     一，unlink 了 其中一个文件，而且你恰好开着终端并且挂着s…",
+   "url": "https://callsymmetryecho.github.io/2024/12/31/Linux/%E5%A6%82%E4%BD%95%E7%B4%A7%E6%80%A5%E4%BF%AE%E5%A4%8D%EF%BC%8C%E5%BD%93%E4%BD%A0%E5%9C%A8linux%E4%B8%AD%E5%B9%B2%E7%A9%BF%E4%BA%86libc%E4%B8%A2%E4%BA%86libc.so.6%2Cld-linux-x86-64.so.2%E5%85%B6%E4%B8%AD%E4%B8%80%E4%B8%AA/"
+  }
+ ]
+}

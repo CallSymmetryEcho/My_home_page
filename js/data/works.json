@@ -1,0 +1,64 @@
+{
+ "light": [
+  {
+   "title": "Optoelectric Raman nanosensors",
+   "status": "PREPRINT",
+   "url": "https://doi.org/10.21203/rs.3.rs-4732904/v1"
+  },
+  {
+   "title": "Optically-induced electrical nano-patterning",
+   "status": "PREPRINT",
+   "url": null
+  }
+ ],
+ "heat": [
+  {
+   "title": "Temperature-regulated colloidal assembly",
+   "status": "ONGOING",
+   "url": null
+  }
+ ],
+ "electric": [
+  {
+   "title": "Light-stimulated micromotor swarms",
+   "status": "PUBLISHED",
+   "url": "https://www.science.org/doi/10.1126/sciadv.adi9932"
+  },
+  {
+   "title": "Massively parallel microbubble nano-assembly",
+   "status": "PUBLISHED",
+   "url": "https://www.nature.com/articles/s41467-025-62070-9"
+  }
+ ],
+ "solvation": [
+  {
+   "title": "Phase separation & solvation for robust gels",
+   "status": "PREPRINT",
+   "url": "https://chemrxiv.org/doi/full/10.26434/chemrxiv-2025-0kn99"
+  }
+ ],
+ "machines": [
+  {
+   "title": "E-tweezers multiscale manipulation",
+   "status": "IN PREP",
+   "url": null
+  },
+  {
+   "title": "Self-built SCARA platform",
+   "status": "IN PREP",
+   "url": null
+  },
+  {
+   "title": "Hydrogel wristband digital twin",
+   "status": "ONGOING",
+   "url": null
+  }
+ ],
+ "projects": [
+  {
+   "title": "github.com/CallSymmetryEcho",
+   "status": "CODE",
+   "url": "https://github.com/CallSymmetryEcho"
+  }
+ ]
+}
