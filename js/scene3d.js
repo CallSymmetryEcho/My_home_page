@@ -402,6 +402,7 @@ export function createHero(canvas, opts = {}) {
   //   .00 → .25  release    λ handed to the morph (PHY.holdRelease) — beads free, sheet flattens
   //   .25 → .60  un-weave   fabric lines fade out as the trace layer slides off the lattice
   //   .60 → .85  crystallise solder mask · outline · pads · silkscreen · logo fade in
+  //   .80 → .97  land       the photoreal board fades in UNDER the lines; mask fades out
   //   .85 → 1    pull back  camera dollies out ×DOLLY; the board reads as one object
   const BOARD_URL = './js/data/board-hswb.json';
   const LOGO_URL = 'image/logo-bin-mono.png';
@@ -409,6 +410,9 @@ export function createHero(canvas, opts = {}) {
   const BOARD_W = 0.52;      // board width AFTER rotation, as a fraction of the viewport W
   const TRACE_N = 0.9;       // trace layer lift along n̂ [world]
   const FACE_N = 0.2;        // solder-mask quad, just under the copper
+  const PHOTO_N = 0.1;       // photoreal board, just under the mask it replaces
+  const PHOTO_MAX = 0.92;    // photo opacity at t = 1
+  const LINE_DIM = 0.55;     // the line layers step back to this once the photo has landed
   const SILK_N = 1.4;        // silkscreen sits on top of the mask
   const PULSE_N = 2.4;       // signal pulses ride above the traces
   const SILK_F = 0.024;      // silkscreen cap height, as a fraction of the board height
@@ -462,8 +466,26 @@ export function createHero(canvas, opts = {}) {
   const face = new THREE.Mesh(faceGeo, faceMat);
   face.renderOrder = -1;                       // under the copper, over the (faded) fabric
 
+  // the physical board, photographed. Its uv attribute is fixed; the four corners move in
+  // buildBoardGeom so that the image's photo.rect sub-region lands ON the drawn outline.
+  // Board y and rect v both run top-down (PIL), three.js uv v runs bottom-up (flipY default),
+  // hence uv.v = 1 − v_rect: the two TOP corners (rect v = v0 side) get uv.v = 1.
+  const photoGeo = new THREE.BufferGeometry();
+  photoGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(12), 3));
+  photoGeo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([0, 1, 1, 1, 1, 0, 0, 0]), 2));
+  photoGeo.setIndex([0, 1, 2, 0, 2, 3]);
+  // DoubleSide: the quad's winding flips with the BOARD_ROT knob, and a culled photo is a
+  // silent failure — this is the one word that survives any rotation.
+  const photoMat = new THREE.MeshBasicMaterial({
+    transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide,
+  });
+  const photoMesh = new THREE.Mesh(photoGeo, photoMat);
+  photoMesh.renderOrder = -2;                  // under the mask (-1), which is under the copper
+  photoMesh.visible = false;
+  let photoPx = [0, 0];
+
   const silkGrp = new THREE.Group();
-  for (const o of [face, traceLines, outline, padLines, silkGrp]) { o.frustumCulled = false; boardGrp.add(o); }
+  for (const o of [photoMesh, face, traceLines, outline, padLines, silkGrp]) { o.frustumCulled = false; boardGrp.add(o); }
 
   // per-trace source/target endpoints in PHYSICS px: [ax, ay, bx, by]
   let NT = 0, srcRows = 0;
@@ -526,6 +548,13 @@ export function createHero(canvas, opts = {}) {
     }));
     logo.userData.box = [0.5, 0.84];             // centre-bottom of what the viewer sees
     silkGrp.add(logo);
+
+    if (j.photo) {
+      const pt = new THREE.TextureLoader().load(j.photo.url, undefined, undefined,
+        () => console.warn('board morph: board photo missing —', j.photo.url));
+      pt.colorSpace = THREE.SRGBColorSpace;
+      photoMat.map = pt; photoMat.needsUpdate = true;
+    }
 
     buildBoardGeom();
     // pulses: the amber tracers first, then the lowest indices. Phase = a random start.
@@ -620,6 +649,22 @@ export function createHero(canvas, opts = {}) {
     });
     faceGeo.attributes.position.needsUpdate = true;
 
+    // photo.rect = the outline's sub-rectangle inside the image, and the board unit square
+    // IS that rectangle — so image u maps to board x as bx = (u − u0)/du, likewise v → by.
+    // The image corners are therefore bx ∈ [−u0/du, (1 − u0)/du] (span 1/du board-x units,
+    // i.e. aspect·bs/du px) and by ∈ [−v0/dv, (1 − v0)/dv]. Corner order matches the uv
+    // attribute above: top-left, top-right, bottom-right, bottom-left.
+    if (board.photo) {
+      const [u0, v0, u1, v1] = board.photo.rect, du = u1 - u0, dv = v1 - v0;
+      const pq = photoGeo.attributes.position.array;
+      [[-u0 / du, -v0 / dv], [(1 - u0) / du, -v0 / dv],
+        [(1 - u0) / du, (1 - v0) / dv], [-u0 / du, (1 - v0) / dv]].forEach((c, i) => {
+        b2p(c[0], c[1], t1); sheetXYZ(t1[0], t1[1], PHOTO_N, pq, i * 3);
+      });
+      photoGeo.attributes.position.needsUpdate = true;
+      photoPx = [board.aspect * bs / du, bs / dv];   // image u/v extents, in physics px
+    }
+
     const sh = SILK_F * bh * PLANE_S, ls = LOGO_F * bh * PLANE_S;
     for (const sp of silkGrp.children) {
       if (sp.userData.box) { box2p(sp.userData.box[0], sp.userData.box[1], t1); sp.scale.set(ls, ls, 1); }
@@ -655,11 +700,12 @@ export function createHero(canvas, opts = {}) {
     if (!board) { pulseOn = false; return; }
 
     // stage 2 — the fabric hands its lines over to the copper
-    const s2 = stg(t, 0.25, 0.6), s3 = stg(t, 0.6, 0.85);
+    const s2 = stg(t, 0.25, 0.6), s3 = stg(t, 0.6, 0.85), s4 = stg(t, 0.8, 0.97);
+    const dim = 1 - (1 - LINE_DIM) * s4;          // lines step back once the photo lands
     fabMat.opacity = 1 - s2;
     fabric.visible = fabMat.opacity > 0.004;
 
-    traceMat.opacity = stg(t, 0.25, 0.36);
+    traceMat.opacity = stg(t, 0.25, 0.36) * dim;
     boardGrp.visible = traceMat.opacity > 0.002;
     // only the 150-vertex-pair rewrite is skipped when the layer is invisible; every
     // opacity below still tracks t, so scrubbing back leaves no flag lying about its state
@@ -676,12 +722,17 @@ export function createHero(canvas, opts = {}) {
     }
 
     // stage 3 — the board becomes an object
-    faceMat.opacity = 0.92 * s3;
-    outMat.opacity = 0.50 * s3;
-    padMat.opacity = 0.45 * s3;
+    // stage 4 — the blueprint lands on the real thing: the photo fades in under the copper,
+    // the stand-in mask fades out from under it, and the lines step back to LINE_DIM.
+    faceMat.opacity = 0.92 * s3 * (1 - s4);
+    outMat.opacity = 0.50 * s3 * dim;
+    padMat.opacity = 0.45 * s3 * dim;
+    photoMat.opacity = PHOTO_MAX * s4;
     for (const sp of silkGrp.children) sp.material.opacity = (sp.userData.box ? 0.20 : 0.42) * s3;
     const on = s3 > 0.004;
-    face.visible = outline.visible = padLines.visible = silkGrp.visible = on;
+    outline.visible = padLines.visible = silkGrp.visible = on;
+    face.visible = faceMat.opacity > 0.004;
+    photoMesh.visible = !!board.photo && photoMat.opacity > 0.004;
 
     pulseOn = t >= 0.6;
   }
@@ -869,6 +920,7 @@ export function createHero(canvas, opts = {}) {
         t: morphT, fabricOpacity: +fabMat.opacity.toFixed(3), fabricVisible: fabric.visible,
         traceOpacity: +traceMat.opacity.toFixed(3), boardVisible: boardGrp.visible,
         maskOpacity: +faceMat.opacity.toFixed(3), silkSprites: silkGrp.children.length,
+        photoOpacity: +photoMat.opacity.toFixed(3), photoPx: photoPx.map(v => +v.toFixed(1)),
         pulseOn, pulses: pulsePos.length / 2, beadScale: +beadScale.toFixed(3),
         dolly: +dolly.toFixed(3), lambda: +PHY.getLambda().toFixed(4), mode: PHY.getMode(),
       };
@@ -900,8 +952,10 @@ export function createHero(canvas, opts = {}) {
       if (fpsEl) fpsEl.remove();
       bloom.dispose(); outPass.dispose(); composer.dispose();
       fabGeo.dispose(); beadGeo.dispose(); starGeo.dispose(); beamGeo.dispose();
-      traceGeo.dispose(); outGeo.dispose(); padGeo.dispose(); faceGeo.dispose();
+      traceGeo.dispose(); outGeo.dispose(); padGeo.dispose(); faceGeo.dispose(); photoGeo.dispose();
       traceMat.dispose(); outMat.dispose(); padMat.dispose(); faceMat.dispose();
+      if (photoMat.map) photoMat.map.dispose();
+      photoMat.dispose();
       for (const sp of silkGrp.children) { sp.material.map.dispose(); sp.material.dispose(); }
       fabMat.dispose(); starMat.dispose(); glassMat.dispose(); tracMat.dispose();
       beamMat.dispose(); glowMat.dispose(); coreMat.dispose();
