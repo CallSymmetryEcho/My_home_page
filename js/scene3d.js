@@ -277,6 +277,7 @@ export function createHero(canvas) {
   // sky (world −Y, NOT the sheet normal — an external source reads as external) and where
   // it lands the sheet dips and the beads gather. Click = melt = the laser fires a heating
   // pulse, so the same `pulse` the physics heats with drives the flash.
+  const LASER_ON = false;     // ponytail: parked — Bin 觉得有点太过. Flip to re-enable; tone down the three opacities below if it returns.
   const BEAM_W = 26;          // beam plane width [world]
   const BEAM_LEN = 1.6;       // beam length [·H]
   const GLOW_R = 70, CORE_R = 24;  // impact sprites [world]
@@ -345,6 +346,7 @@ export function createHero(canvas) {
   const lpos = new THREE.Vector3();
   let lvis = 0, ltime = 0;
   function updateLaser(dt) {
+    if (!LASER_ON) return;    // group stays invisible; zero per-frame cost
     ltime += dt;
     // per-frame rates (0.25 glide, 0.15 fade at 60 fps) made dt-exact, so one big
     // advance(2) from the QA hook lands where two seconds of rAF frames would

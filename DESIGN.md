@@ -56,7 +56,9 @@ hero3d-prototype.html Step1 交付物
 - [x] Step 0：2D 原型（Langevin + 鼠标 −∇V + 熔化 + kT + 方程/2D→3D 势能面板）
 - [x] three.js vendor 落库
 - [x] **① Hero 3D 原型**：单一 55° 倾斜 GR 织物 + 珠子贴面 + 每珠酒窝 + λ 涌现动画 + 光镊（Bin 认可基础效果）
-- [ ] ①b Hero 收尾：光标激光束特效（进行中）；镜头视角/远近的沉浸式调优（后续，Bin 提出可再调）
+- [x] ①b 光标激光束特效（落点辉光骑在阱底、点击脉冲爆闪与熔化共用 pulse 变量）——**Hero 章节暂收口**
+- [ ] ①c 镜头视角/远近的沉浸式调优（后续打磨项，Bin 提出）
+- 流程注记：`node --check` 对带 ESM import 的 .js 会漏报语法错误——JS 验证必须实际加载页面（或 --input-type=module）
 - [ ] ② Fields of Control
 - [ ] ③ Closing the Loop（+小游戏后置）
 - [ ] ④ Journey ⑤ Toolbox ⑥ Awards+Teaching+Footer（可合并）
