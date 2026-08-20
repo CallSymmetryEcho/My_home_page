@@ -299,7 +299,7 @@ export function createHero(canvas, opts = {}) {
       const w = (cy - y) * PLANE_S;             // along ŵ (screen-y is inverted)
       let X = u, Y = cy0 + w * SINP + n * COSP, Z = -w * COSP + n * SINP;
       // a pulse belongs to the board, so it rides the board group's own transform (rest
-      // offset, and the dock shrink of the arm stage) — beads are drawn in scene space.
+      // offset, and the dock shrink of the band stage) — beads are drawn in scene space.
       if (slot >= 0) {
         const g = boardGrp.position, gs = boardGrp.scale.x;
         s *= gs; X = g.x + X * gs; Y = g.y + Y * gs; Z = g.z + Z * gs;
@@ -728,7 +728,11 @@ export function createHero(canvas, opts = {}) {
     const jh = ss(jourT / 0.45 < 1 ? jourT / 0.45 : 1);
     beadScale = (1 - 0.55 * stg(t, 0.05, 0.5) * inv) * (1 - jh);
     dollyM = 1 + (DOLLY - 1) * stg(t, 0.85, 1);
-    updateArm();                                  // the arm stage extends this frame's camera + board transform
+    // …and the ALGO beat pulls the whole physical stage back to a ghost, so the card's
+    // equation is the only thing left lit. It is a multiplier like `inv`, and the exit
+    // restores it (see algoDim), so the three of them compose instead of fighting.
+    const gd = algoDim();
+    updateBand();                                 // -> updateArm(): the later beats extend this frame's camera + board transform
 
     if (!board) {                                 // fail-soft path still owes the journey its fade
       fabMat.opacity = 1 - jh;
@@ -739,13 +743,14 @@ export function createHero(canvas, opts = {}) {
 
     // stage 2 — the fabric hands its lines over to the copper
     const s2 = stg(t, 0.25, 0.6), s3 = stg(t, 0.6, 0.85), s4 = stg(t, 0.8, 0.97);
-    const dim = 1 - (1 - LINE_DIM) * s4;          // lines step back once the photo lands
+    // lines step back once the photo lands — and again as the board shrinks into the berth
+    const dim = (1 - (1 - LINE_DIM) * s4) * (1 - DOCK_DIM * dockU());
     // …and the exit hands them BACK. A multiplier cannot lift an opacity the morph drove to
     // 0, so the fabric's own term is a lerp toward 1; every board layer is multiplicative.
     fabMat.opacity = (1 - s2 * inv) * (1 - jh);
     fabric.visible = fabMat.opacity > 0.004;
 
-    traceMat.opacity = stg(t, 0.25, 0.36) * dim * inv;
+    traceMat.opacity = stg(t, 0.25, 0.36) * dim * inv * gd;
     boardGrp.visible = traceMat.opacity > 0.002;
     // only the 150-vertex-pair rewrite is skipped when the layer is invisible; every
     // opacity below still tracks t, so scrubbing back leaves no flag lying about its state
@@ -764,12 +769,12 @@ export function createHero(canvas, opts = {}) {
     // stage 3 — the board becomes an object
     // stage 4 — the blueprint lands on the real thing: the photo fades in under the copper,
     // the stand-in mask fades out from under it, and the lines step back to LINE_DIM.
-    faceMat.opacity = 0.92 * s3 * (1 - s4) * inv;
-    outMat.opacity = 0.50 * s3 * dim * inv;
-    padMat.opacity = 0.45 * s3 * dim * inv;
-    photoMat.opacity = PHOTO_MAX * s4 * inv;
-    for (const sp of silkGrp.children) sp.material.opacity = (sp.userData.box ? 0.20 : 0.42) * s3 * inv;
-    const on = s3 * inv > 0.004;
+    faceMat.opacity = 0.92 * s3 * (1 - s4) * inv * gd;
+    outMat.opacity = 0.50 * s3 * dim * inv * gd;
+    padMat.opacity = 0.45 * s3 * dim * inv * gd;
+    photoMat.opacity = PHOTO_MAX * s4 * inv * gd;
+    for (const sp of silkGrp.children) sp.material.opacity = (sp.userData.box ? 0.20 : 0.42) * s3 * inv * gd;
+    const on = s3 * inv * gd > 0.004;
     outline.visible = padLines.visible = silkGrp.visible = on;
     face.visible = faceMat.opacity > 0.004;
     photoMesh.visible = !!board.photo && photoMat.opacity > 0.004;
@@ -785,27 +790,161 @@ export function createHero(canvas, opts = {}) {
     updateMorph();
   }
 
-  // ------------------------------------------------------------ the machine (chapter ③, finale)
-  // Micro → macro: the board that the sheet just became docks into the machine that hosts it.
-  // The arm is a raw edge dump (Float32 line segments, height-normalised, centred) drawn in
-  // the same additive-white voice as the fabric — a schematic of a real machine, not a render.
+  // ------------------------------------------------------------ SENSE (chapter ③, beat 2)
+  // The board is not a bench object — it is a WRISTBAND controller, and this is where it goes
+  // home. A hand + strap edge-ghost comes up right of centre and the board (the same board the
+  // sheet just became) shrinks and glides into its berth on the wrist. The berth is authored in
+  // the band's OWN normalised frame (band-edges.json `dock` — the HS_WB bbox out of the source
+  // Blender scene), so it survives any re-export, re-scale or knob change here.
+  // setBand(tb) is a pure function of tb, same contract as setMorph.
+  const BAND_URL = './js/data/band-edges.bin';
+  const BAND_META = './js/data/band-edges.json';
+  const BAND_SPAN = 0.60;    // knob: the hand's longest extent [·H world]
+  const BAND_X = 0.12;       // knob: band centre, right of centre [·W world]
+  const BAND_Y = 0.16;       // …its height — the look point [·H world]
+  const BAND_Z = 0.05;       // …and depth, just in front of the sheet [·H world]
+  // the source pose runs wrist(−z) → fingertips(+z); yaw 90° swings that to screen-right and
+  // the (negative) pitch lifts the fingertips to the up-right diagonal the composition wants.
+  const BAND_YAW = 90;       // knob: yaw [deg]
+  const BAND_PITCH = -14;    // knob: pitch [deg]
+  const BAND_OP = 0.42;      // final line opacity
+  const DOCK_FIT = 1.0;      // knob: board size in the berth, 1 = exactly the dock's X extent
+  const DOCK_DIM = 0.72;     // knob: how far the copper steps back once the board is on the wrist
+
+  let bandGeo = null, bandV = null, bandBusy = false, bandFail = false, bandT = 0, algoT = 0;
+  let dockLen = 0;                                  // the berth's long (x) extent, band units
+  const bandDock = new THREE.Vector3();             // …and its centre, in the same frame
+  const dockW = new THREE.Vector3();                // …projected to world by placeBand
+  // NormalBlending like the arm: knuckles and strap stitching stack edges and additive lines
+  // blow those spots out into white orbs
+  const bandMat = new THREE.LineBasicMaterial({
+    color: 0xcfe4e6, transparent: true, opacity: 0, blending: THREE.NormalBlending, depthWrite: false,
+  });
+
+  // the ALGO beat's ghost dim, and the exit's restore of it. One multiplier, three readers
+  // (updateMorph, updateBand, updateArm), so no layer can drift out of step with the others.
+  const algoDim = () => 1 - 0.75 * ss(algoT) * (1 - ss(exitT));
+
+  // how far the board has travelled into the berth. Read by updateBand (the transform) and by
+  // updateMorph (the copper steps back with it — 1115 additive trace segments squeezed into a
+  // 40 px rectangle is a white blob, not a circuit; the photo carries the board from here).
+  const dockU = () => (bandV ? stg(bandT, 0.2, 0.85) : 0);
+
+  // fit from the geometry's own bounds, same as placeArm
+  function placeBand() {
+    if (!bandV) return;
+    const bb = bandGeo.boundingBox, d = bb.max.clone().sub(bb.min);
+    const s = BAND_SPAN * H / Math.max(d.x, d.y, d.z);
+    bandV.scale.setScalar(s);
+    bandV.position.set(BAND_X * W, BAND_Y * H, BAND_Z * H);
+    // YXZ, so the pitch tilts the hand along its OWN length and the yaw then swings it right
+    bandV.rotation.set(BAND_PITCH * Math.PI / 180, BAND_YAW * Math.PI / 180, 0, 'YXZ');
+    bandV.updateMatrixWorld();
+    dockW.copy(bandDock).applyMatrix4(bandV.matrixWorld);
+  }
+
+  // the board scale that puts its long axis exactly across the berth. Derived, not a constant:
+  // bw/bh are rebuilt on every resize and the band's own fit scales with H.
+  function dockScale() {
+    const long = Math.max(bw, bh) * PLANE_S;
+    return bandV && long > 0 ? DOCK_FIT * dockLen * bandV.scale.x / long : 1;
+  }
+
+  function loadBand() {
+    bandBusy = true;
+    Promise.all([
+      fetch(opts.bandUrl || BAND_URL).then(r => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('HTTP ' + r.status)))),
+      fetch(opts.bandMetaUrl || BAND_META).then(r => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))),
+    ])
+      .then(([buf, meta]) => {
+        const d = meta && meta.dock;
+        if (!d) throw new Error('band-edges.json has no dock box');
+        bandGeo = new THREE.BufferGeometry();
+        bandGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(buf), 3));
+        bandGeo.computeBoundingBox();
+        bandV = new THREE.LineSegments(bandGeo, bandMat);
+        bandV.frustumCulled = false;                // authored positions, stale bounds
+        scene.add(bandV);
+        bandDock.set((d.min[0] + d.max[0]) / 2, (d.min[1] + d.max[1]) / 2, (d.min[2] + d.max[2]) / 2);
+        dockLen = d.max[0] - d.min[0];
+        bandBusy = false;
+        placeBand(); updateBand();
+      })
+      .catch(e => {
+        bandFail = true; bandBusy = false;          // fail soft: no hand, and the board simply
+        console.warn('band stage: no wristband data —', e.message);   // stays where the morph left it
+      });
+  }
+
+  function updateBand() {
+    const t = bandT, inv = 1 - ss(exitT);
+    bandMat.opacity = BAND_OP * stg(t, 0, 0.4) * inv * algoDim();
+    if (bandV) bandV.visible = bandMat.opacity > 0.004;
+    // the board shrinks and glides until its centre sits in the berth on the wrist. Same idiom
+    // the arm used to own — and the ONLY place the board's group transform is written now, so
+    // the arm beat cannot pull it away again.
+    const u = dockU(), x0 = BOARD_DX * W;
+    const sc = 1 + (dockScale() - 1) * u;
+    boardGrp.scale.setScalar(sc);
+    boardGrp.position.set(
+      x0 + (dockW.x - sc * bC[0] - x0) * u,
+      (dockW.y - sc * bC[1]) * u,
+      (dockW.z - sc * bC[2]) * u,
+    );
+    updateArm();
+  }
+
+  // tb ∈ [0, 1], scrub-safe both ways. The edge dump + its dock box are fetched on the first tb > 0.
+  function setBand(t) {
+    bandT = t > 0 ? (t < 1 ? t : 1) : 0;
+    if (bandT > 0 && !bandV && !bandBusy && !bandFail) loadBand();
+    updateBand();
+  }
+
+  // ta ∈ [0, 1]. The LEARN beat has no geometry of its own — it dims everything that HAS
+  // geometry, so the card's PID → π_θ line is the last thing lit on the screen.
+  function setAlgo(t) {
+    algoT = t > 0 ? (t < 1 ? t : 1) : 0;
+    updateMorph();               // the dim is a multiplier on every layer: re-derive the chain
+  }
+
+  // ------------------------------------------------------------ ACT (chapter ③, beat 3)
+  // The band commands a machine. The arm is a raw edge dump (Float32 line segments, height-
+  // normalised, centred) drawn in the same voice as the band — a schematic of a real machine,
+  // not a render — and it sits further right and further back, BEHIND the hand that drives it.
+  // The board does NOT come here: it is already on the wrist. What travels is the SIGNAL.
   // setArm(t2) is a pure function of t2, same contract as setMorph.
   const ARM_URL = './js/data/arm-edges.bin';
-  const ARM_H = 1.05;        // arm height cap [·H world]
+  const ARM_H = 0.85;        // arm height cap [·H world]
   // …and a footprint cap: this SCARA reaches 2.5× further than it is tall, so height alone
   // would put half the machine outside the frustum (and its near links in the camera's lap).
-  const ARM_SPAN = 0.62;     // knob: max horizontal extent [·W world]
-  const ARM_X = 0.28;        // arm base, right of centre [·W world]
+  const ARM_SPAN = 0.55;     // knob: max horizontal extent [·W world]
+  const ARM_X = 0.55;        // arm base, right of centre — clear of the band [·W world]
   const ARM_Y = 0.0;         // arm base height — sheet level [·H world]
-  const ARM_Z = -0.15;       // arm base, slightly behind the sheet [·H world]
+  const ARM_Z = -0.30;       // arm base, behind the sheet and behind the band [·H world]
   const ARM_YAW = -25;       // knob: yaw [deg], so the profile reads instead of the front face
   const ARM_OP = 0.38;       // final line opacity
-  const DOCK_X = -0.06;      // knobs: dock point, offset from the arm base [·W, ·H, ·H world]
-  const DOCK_Y = 0.22;
-  const DOCK_Z = 0.30;       // + = forward, toward the camera
-  const BOARD_S2 = 0.42;     // board scale at t2 = 1
   const DOLLY2 = 2.05;       // camera distance multiplier at t2 = 1 (extends DOLLY)
   const LOOK_DRIFT = 0.35;   // look-at drift toward the arm, as a fraction of its x
+
+  // the intent stream, made visible: one accent polyline bowing from the berth on the wrist to
+  // the machine it commands. It DRAWS IN with t2 (setDrawRange, so the line grows a vertex at a
+  // time instead of fading in as a whole) — the causal arrow of the chapter.
+  const SIG_N = 40;          // points on the arc
+  const SIG_LIFT = 0.13;     // its bow, up and toward the camera [·H world]
+  const SIG_TO_Y = 0.22;     // knob: aim above the arm's base, so it lands on the column [·H]
+  const SIG_OP = 0.55;
+  const sigGeo = new THREE.BufferGeometry();
+  sigGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SIG_N * 3), 3));
+  sigGeo.attributes.position.setUsage(THREE.DynamicDrawUsage);
+  const sigMat = new THREE.LineBasicMaterial({
+    color: 0x8de9ec, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const signal = new THREE.Line(sigGeo, sigMat);
+  signal.frustumCulled = false;
+  signal.visible = false;
+  scene.add(signal);
+  let sigDrawn = 0;
 
   let armGeo = null, arm = null, armBusy = false, armFail = false, armT = 0;
   // NormalBlending, not additive: pulley teeth stack thousands of edges in one spot and
@@ -839,29 +978,42 @@ export function createHero(canvas, opts = {}) {
         placeArm(); updateArm();
       })
       .catch(e => {
-        armFail = true; armBusy = false;          // fail soft: the board still docks, just no machine
+        armFail = true; armBusy = false;          // fail soft: the band still gets its board, just no machine
         console.warn('arm stage: no edge data —', e.message);
       });
   }
 
   function updateArm() {
-    const t = armT, a = ss(t), inv = 1 - ss(exitT);
+    const t = armT, a = ss(t), inv = 1 - ss(exitT), gd = algoDim();
     // the exit walks the whole camera move back to 1×: the constellation has to read on the
     // sheet at hero framing, and the DOM labels project against this same camera.
     // …and the finale pulls the whole thing far back on top of that (chapter ⑤)
     dolly = (1 + (dollyM + (DOLLY2 - DOLLY) * a - 1) * inv) * (1 + (FIN_DOLLY - 1) * ss(finT));
     look.x = ARM_X * W * LOOK_DRIFT * a * inv;
-    armMat.opacity = ARM_OP * stg(t, 0, 0.5) * inv;
+    armMat.opacity = ARM_OP * stg(t, 0, 0.5) * inv * gd;
     if (arm) arm.visible = armMat.opacity > 0.004;
-    // the board shrinks and glides until its centre sits on the dock point
-    const u = stg(t, 0.15, 0.85), sc = 1 + (BOARD_S2 - 1) * u, x0 = BOARD_DX * W;
-    boardGrp.scale.setScalar(sc);
-    boardGrp.position.set(
-      x0 + ((ARM_X + DOCK_X) * W - sc * bC[0] - x0) * u,
-      ((ARM_Y + DOCK_Y) * H - sc * bC[1]) * u,
-      ((ARM_Z + DOCK_Z) * H - sc * bC[2]) * u,
-    );
+    updateSignal(t, inv * gd);
     updateJourney();          // the planets and the ring are placed against this frame's dolly
+  }
+
+  // the band commands the arm — so the line only exists when BOTH ends do. Missing either bin
+  // is a fail-soft: the beat still plays, just without its arrow.
+  function updateSignal(t, k) {
+    const on = !!(bandV && arm);
+    sigDrawn = on ? Math.round(SIG_N * ss(t / 0.85 < 1 ? t / 0.85 : 1)) : 0;
+    sigMat.opacity = on ? SIG_OP * stg(t, 0.05, 0.35) * k : 0;
+    signal.visible = sigDrawn > 1 && sigMat.opacity > 0.004;
+    if (!signal.visible) return;
+    const p = sigGeo.attributes.position.array, lift = SIG_LIFT * H;
+    const tx = ARM_X * W, ty = (ARM_Y + SIG_TO_Y) * H, tz = ARM_Z * H;
+    for (let i = 0; i < SIG_N; i++) {
+      const u = i / (SIG_N - 1), b = Math.sin(Math.PI * u) * lift;
+      p[i * 3] = dockW.x + (tx - dockW.x) * u;
+      p[i * 3 + 1] = dockW.y + (ty - dockW.y) * u + b;
+      p[i * 3 + 2] = dockW.z + (tz - dockW.z) * u + b * 0.4;
+    }
+    sigGeo.attributes.position.needsUpdate = true;
+    sigGeo.setDrawRange(0, sigDrawn);
   }
 
   // t2 ∈ [0, 1], scrub-safe both ways. The edge dump is fetched lazily on the first t2 > 0.
@@ -872,9 +1024,10 @@ export function createHero(canvas, opts = {}) {
   }
 
   // ------------------------------------------------------------ the exit (chapter ③ → ④)
-  // The machine story closes and the beads come home. setExit(t3) does not undo setMorph /
-  // setArm — it runs ON TOP of them (morphT and armT stay pinned at 1 underneath), fading the
-  // board, the arm and the signal pulses out, growing the beads back to full size, handing the
+  // The machine story closes and the beads come home. setExit(t3) does not undo the beats
+  // underneath it — morphT/bandT/armT/algoT all stay pinned at 1 — it runs ON TOP of them,
+  // fading the board, the hand, the arm, the signal line and the pulses out, LIFTING the algo
+  // beat's ghost dim back off (see algoDim), growing the beads back to full size, handing the
   // fabric its opacity back and dollying the camera home. Pure function of t3, so scrubbing
   // back up re-lights the finale exactly as it was.
   function setExit(t) {
@@ -1143,8 +1296,9 @@ export function createHero(canvas, opts = {}) {
     // the board is authored in viewport px and the arm is placed against W/H, so a resize is
     // simply a rebuild + a re-derive of both stages from (morphT, armT)
     if (board) buildBoardGeom();
+    placeBand();                 // …and the berth's world point, which the board docks onto
     placeArm();
-    updateMorph();               // -> updateArm(): camera dolly, look drift, board dock transform
+    updateMorph();               // -> updateBand() -> updateArm(): dolly, look drift, dock transform
 
     // beam hangs from the sky down to the group origin (the impact point)
     const bl = BEAM_LEN * H;
@@ -1278,7 +1432,9 @@ export function createHero(canvas, opts = {}) {
     mode: () => PHY.getMode(),
     lambda: () => PHY.getLambda(),
     setMorph,
+    setBand,
     setArm,
+    setAlgo,
     setExit,
     setJourney,
     setPlanet,
@@ -1286,6 +1442,18 @@ export function createHero(canvas, opts = {}) {
     project,
     // everything the morph can get wrong, in one readable object
     boardStats() {
+      const mch = {
+        tb: bandT, t2: armT, ta: algoT, bandLoaded: !!bandV, bandFailed: bandFail,
+        armLoaded: !!arm, armFailed: armFail, armOpacity: +armMat.opacity.toFixed(3),
+        armSegs: armGeo ? armGeo.attributes.position.count / 2 : 0,
+        bandOpacity: +bandMat.opacity.toFixed(3),
+        bandSegs: bandGeo ? bandGeo.attributes.position.count / 2 : 0,
+        dockWorld: [dockW.x, dockW.y, dockW.z].map(v => Math.round(v)),
+        dockScale: +dockScale().toFixed(4),
+        signalProgress: +(sigDrawn / SIG_N).toFixed(3),
+        signalOpacity: +sigMat.opacity.toFixed(3),
+        algoDim: +algoDim().toFixed(3),
+      };
       const jrn = {
         t4: jourT, t5: finT, planetIdx, focusLerp: +focusF.toFixed(3),
         starsBuilt: planets ? planets.length : 0,
@@ -1293,7 +1461,7 @@ export function createHero(canvas, opts = {}) {
         starScale: planets ? planets.map(p => Math.round(p.scale.x)) : null,
         linkOpacity: +linkMat.opacity.toFixed(3), ringOpacity: +ringMat.opacity.toFixed(3),
       };
-      if (!board) return { board: null, failed: boardFail, pending: boardBusy, t: morphT, t3: exitT, ...jrn };
+      if (!board) return { board: null, failed: boardFail, pending: boardBusy, t: morphT, t3: exitT, ...mch, ...jrn };
       let mn = Infinity, mx = 0, len = 0, bad = 0;
       for (let k = 0; k < NT; k++) {
         const o = k * 4;
@@ -1313,10 +1481,10 @@ export function createHero(canvas, opts = {}) {
         photoOpacity: +photoMat.opacity.toFixed(3), photoPx: photoPx.map(v => +v.toFixed(1)),
         pulseOn, pulses: pulsePos.length / 2, beadScale: +beadScale.toFixed(3),
         dolly: +dolly.toFixed(3), lambda: +PHY.getLambda().toFixed(4), mode: PHY.getMode(),
-        t2: armT, armLoaded: !!arm, armFailed: armFail, t3: exitT,
-        armOpacity: +armMat.opacity.toFixed(3), armSegs: armGeo ? armGeo.attributes.position.count / 2 : 0,
-        boardScale: +boardGrp.scale.x.toFixed(3),
+        t3: exitT,
+        boardScale: +boardGrp.scale.x.toFixed(4),
         boardPos: [boardGrp.position.x, boardGrp.position.y, boardGrp.position.z].map(v => Math.round(v)),
+        ...mch,
         ...jrn,
       };
     },
@@ -1337,7 +1505,9 @@ export function createHero(canvas, opts = {}) {
 
   return {
     setMorph,
+    setBand,
     setArm,
+    setAlgo,
     setExit,
     setJourney,
     setPlanet,
@@ -1358,7 +1528,9 @@ export function createHero(canvas, opts = {}) {
       fabGeo.dispose(); beadGeo.dispose(); starGeo.dispose(); beamGeo.dispose();
       traceGeo.dispose(); outGeo.dispose(); padGeo.dispose(); faceGeo.dispose(); photoGeo.dispose();
       if (armGeo) armGeo.dispose();
-      armMat.dispose();
+      if (bandGeo) bandGeo.dispose();
+      armMat.dispose(); bandMat.dispose();
+      sigGeo.dispose(); sigMat.dispose();
       traceMat.dispose(); outMat.dispose(); padMat.dispose(); faceMat.dispose();
       if (photoMat.map) photoMat.map.dispose();
       photoMat.dispose();

@@ -26,14 +26,17 @@
   .pane  { height: 100vh; }
   /* MACHINES and JOURNEY are the two sections that scrub instead of switching: their height
      IS their scrub range.
-     Panes: hero 1 + fields 1 + machines 3.1 + journey 2.2 + contact 1.2 = 8.5H of document,
-     so the last pixel of scroll is s = 7.5H. Boundaries [·H]:
-       hero [0,1) · fields [1,2) · machines [2,5) — morph [2,3.8], arm [3.8,4.6], exit [4.6,5]
-       journey [5,7.2) — overview [5,6], zoom [6,6.6], zoomed browsing [6.6,7.2)
-       contact [7.2,7.5]                                                            */
-  .pane-tall { height: 310vh; }
+     Panes: hero 1 + fields 1 + machines 4.6 + journey 2.2 + contact 0.6 = 9.4H of document,
+     so the last pixel of scroll is s = 8.4H — exactly where the finale ends. Boundaries [·H]:
+       hero [0,1) · fields [1,2) · machines [2,5.9)
+         — morph [2,3.8] · band [3.8,4.4] · arm [4.4,5.0] · algo [5.0,5.5] · exit [5.5,5.9]
+       journey [5.9,8.1) — overview [5.9,6.9], zoom [6.9,7.5], zoomed browsing [7.5,8.1)
+       contact [8.1,8.4]
+     (the contact pane shrank from 1.2H to 0.6H to absorb the machines pane's 460vh: the one
+      invariant is sum(panes) − 1 = C0 + CFIN, i.e. the page ends when the finale does.) */
+  .pane-tall { height: 460vh; }
   .pane-journey { height: 220vh; }
-  .pane-contact { height: 120vh; }
+  .pane-contact { height: 60vh; }
 
   .nav {
     position: fixed; top: 0; left: 0; right: 0; height: 64px; z-index: 3;
@@ -124,6 +127,27 @@
   /* the chapter card: same voice, one line wider — its fact list is the longest on the site */
   .mc { max-width: 32em; }
   .mc .fc-facts { line-height: 1.9; }
+
+  /* the LEARN card's step response — the one picture in the whole chapter. Two second-order
+     curves in one 260×90 box: the hand-tuned PID rings its way to the setpoint, the learned
+     policy just arrives. Static polylines with pathLength="1", so the draw-on is a single
+     stroke-dashoffset transition off .active and there is no JS behind it at all. */
+  .sr { display: block; width: 100%; max-width: 260px; height: auto; margin: 2px 0 16px; }
+  .sr-ax { fill: none; stroke: var(--hair); stroke-width: 1; }
+  .sr-set { fill: none; stroke: var(--hair); stroke-width: 1; stroke-dasharray: 2 5; }
+  .sr-c { fill: none; stroke-linecap: round; stroke-linejoin: round;
+          stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+  .field-card.active .sr-c { stroke-dashoffset: 0; }
+  .sr-pid { stroke: var(--text-dim); stroke-width: 1.2; opacity: .6;
+            transition: stroke-dashoffset 1.1s ease .15s, stroke-dasharray .4s ease 1.25s; }
+  /* …and once it has drawn itself the hand-tuned curve breaks up into a dashed line: the same
+     dasharray, moved on. One property doing both jobs, no second element to keep in sync. */
+  .field-card.active .sr-pid { stroke-dasharray: .022 .018; }
+  .sr-pi { stroke: var(--accent); stroke-width: 1.7;
+           transition: stroke-dashoffset 1.1s ease .45s; }
+  .sr-lab { font-family: var(--mono); font-size: 9px; letter-spacing: .12em; }
+  .sr-lab.a { fill: var(--accent); }
+  .sr-lab.d { fill: var(--text-dim); }
   @media (max-width: 760px) { .field-card { bottom: 15vh; max-width: none; right: 20px; } }
   #journey-card .fc-body { margin-top: 14px; }
 
@@ -378,22 +402,61 @@
 </section>
 
 <!-- Chapter 02. The one section that SCRUBS: its height is the scrub range, and the whole
-     chapter is one card + two numbers (tMorph, tArm) handed to scene3d. -->
+     chapter is five numbers handed to scene3d — and it is a CAUSAL CHAIN, not a pile:
+       BOARD (tMorph)  the sheet becomes the circuit I etched
+       SENSE (tBand)   …which is a WRISTBAND controller: a hand comes up and the board docks
+                       into its berth on the wrist
+       ACT   (tArm)    …and the band commands a machine: the arm arrives behind it and one
+                       accent line draws the intent stream from the wrist to the base
+       LEARN (tAlgo)   …pull back off the hardware entirely: PID → learned policy
+     One card per beat, same .field-card idiom, one active at a time. -->
 <section class="pane pane-tall" id="machines">
-  <article class="field-card mc" id="machines-card">
+  <article class="field-card" data-n="01" data-name="BOARD">
     <p class="fc-kicker">CHAPTER 02 — MACHINES</p>
     <h2 class="fc-title">From physics to machines</h2>
+    <p class="fc-body">The board I etched into spacetime is real — and it belongs to a machine.</p>
+    <p class="fc-facts">HS_WB · hydrogel-sensor wristband controller</p>
+    <p class="fc-pub"><span class="chip">HARDWARE</span></p>
+  </article>
+
+  <article class="field-card" data-n="02" data-name="BAND">
+    <p class="fc-kicker">MACHINES — SENSE</p>
+    <h2 class="fc-title">A wristband that feels</h2>
+    <p class="fc-body">Hydrogel strain sensors read the hand; the board decodes intent.</p>
+    <p class="fc-facts">5-finger digital twin from 4 channels · 98% · CNN-LSTM</p>
+    <p class="fc-pub"><span class="chip">SENSE</span></p>
+  </article>
+
+  <article class="field-card" data-n="03" data-name="ARM">
+    <p class="fc-kicker">MACHINES — ACT</p>
+    <h2 class="fc-title">An arm that answers</h2>
+    <p class="fc-body">The band's intent stream drives a self-built SCARA arm.</p>
+    <p class="fc-facts">300 mm reach · ±0.02 mm repeatability · 18.18:1 self-built drives</p>
+    <p class="fc-pub"><span class="chip">ACT</span></p>
+  </article>
+
+  <article class="field-card mc" data-n="04" data-name="ALGO">
+    <p class="fc-kicker">MACHINES — LEARN</p>
+    <h2 class="fc-title">A controller that learns</h2>
     <p class="fc-eq">u(t) = K<sub>p</sub>e + K<sub>i</sub>∫e·dt + K<sub>d</sub>ė &nbsp;→&nbsp;
       <span class="v-term">u<sub>t</sub> = π<sub>θ</sub>(s<sub>t</sub>)</span></p>
-    <p class="fc-body">I design the electronics, build the machines, and write the policies that
-      close the loop — experiments that run themselves.</p>
-    <p class="fc-facts">
-      robotic arm · 300 mm reach · ±0.02 mm repeatability · self-built 18.18:1 drives<br>
-      ML surrogate for FEM · 6 h → 7 ms<br>
-      5-finger digital twin from 4 hydrogel sensors · 98%<br>
-      autonomous wet-lab loop · CV + LLM + RL
-    </p>
-    <p class="fc-pub"><span class="chip">SYSTEMS</span></p>
+    <!-- the same step, answered twice. Curves are y(t) of a second-order system: ζ=0.30 (the
+         hand-tuned loop, ringing) and ζ=0.95 (the learned one, settled before the first
+         overshoot would have been). -->
+    <svg class="sr" viewBox="0 0 260 90" role="img" aria-label="Step response: PID rings and settles slowly, the learned policy settles fast and cleanly">
+      <path class="sr-ax" d="M22 78 H250"/>
+      <path class="sr-set" d="M22 34 H250"/>
+      <polyline class="sr-c sr-pid" pathLength="1" points="22.0,78.0 26.0,77.2 29.9,74.9 33.9,71.4 37.9,66.9 41.8,61.7 45.8,56.1 49.8,50.3 53.7,44.6 57.7,39.1 61.6,34.0 65.6,29.5 69.6,25.7 73.5,22.6 77.5,20.3 81.5,18.7 85.4,17.8 89.4,17.6 93.4,18.1 97.3,19.0 101.3,20.4 105.2,22.2 109.2,24.2 113.2,26.3 117.1,28.4 121.1,30.5 125.1,32.6 129.0,34.4 133.0,36.0 137.0,37.4 140.9,38.5 144.9,39.3 148.9,39.8 152.8,40.1 156.8,40.1 160.8,39.9 164.7,39.5 168.7,38.9 172.6,38.2 176.6,37.5 180.6,36.7 184.5,35.9 188.5,35.1 192.5,34.4 196.4,33.7 200.4,33.1 204.4,32.6 208.3,32.3 212.3,32.0 216.2,31.8 220.2,31.7 224.2,31.7 228.1,31.8 232.1,32.0 236.1,32.2 240.0,32.5 244.0,32.8"/>
+      <polyline class="sr-c sr-pi" pathLength="1" points="22.0,78.0 26.0,76.5 29.9,73.0 33.9,68.5 37.9,63.7 41.8,59.1 45.8,54.8 49.8,51.0 53.7,47.8 57.7,45.0 61.6,42.7 65.6,40.9 69.6,39.3 73.5,38.1 77.5,37.2 81.5,36.4 85.4,35.8 89.4,35.3 93.4,35.0 97.3,34.7 101.3,34.5 105.2,34.4 109.2,34.3 113.2,34.2 117.1,34.1 121.1,34.1 125.1,34.1 129.0,34.0 133.0,34.0 137.0,34.0 140.9,34.0 144.9,34.0 148.9,34.0 152.8,34.0 156.8,34.0 160.8,34.0 164.7,34.0 168.7,34.0 172.6,34.0 176.6,34.0 180.6,34.0 184.5,34.0 188.5,34.0 192.5,34.0 196.4,34.0 200.4,34.0 204.4,34.0 208.3,34.0 212.3,34.0 216.2,34.0 220.2,34.0 224.2,34.0 228.1,34.0 232.1,34.0 236.1,34.0 240.0,34.0 244.0,34.0"/>
+      <!-- each label sits on its own curve's most distinctive point: the PID's overshoot peak,
+           and the learned policy's flat settle. Colour is the legend — dim vs accent. -->
+      <text class="sr-lab d" x="89" y="12" text-anchor="middle">PID</text>
+      <text class="sr-lab a" x="92" y="50" text-anchor="middle">π<tspan dy="2.5" font-size="7">θ</tspan></text>
+    </svg>
+    <p class="fc-body">Hand-tuned gains become learned policies — PINN/RL tuning the controller,
+      agents running the lab.</p>
+    <p class="fc-facts">PID → RL · autonomous wet-lab loop · CV + LLM + RL</p>
+    <p class="fc-pub"><span class="chip">LEARN</span></p>
   </article>
 </section>
 
@@ -523,36 +586,43 @@ try {
   // Extension: a new major section = one entry in SECTIONS + one <section class="pane">.
   // A new field = one more .field-card (dock + sub-ticks are built from the cards).
   //
-  // MACHINES is the exception: it does not switch, it SCRUBS. Its 2.6H of scroll is two
-  // numbers — tMorph (fabric -> PCB) and tArm (the board docking into the machine) — both
-  // pure functions of s, so scrubbing back undoes them exactly.
+  // MACHINES is the exception: it does not switch, it SCRUBS. Its 3.9H of scroll is FIVE
+  // numbers — tMorph (fabric -> PCB), tBand (the board docking into the wristband), tArm (the
+  // arm arriving + the signal line drawing), tAlgo (the stage dimming to a ghost) and tExit —
+  // all pure functions of s, so scrubbing back undoes them exactly. Its four cards ride the
+  // same sub-tick pattern as the fields', except each sub-tick lands on its own SCROLL depth
+  // (SECTIONS.subsAt) instead of switching horizontally.
   const GEN = { focus: F.focus, lattice: F.lattice, wires: F.wires, network: F.network };
   const cards = [...document.querySelectorAll('#fields .field-card')];
+  const mCards = [...document.querySelectorAll('#machines .field-card')];
   const jnCards = [...document.querySelectorAll('.jn-card')];
   const FSEC = 1, MSEC = 2, JSEC = 3, CSEC = 4;      // fields · machines · journey · contact
   // `at` = where the timeline tick lands you [·H]; `subAt` = where a SUB-tick lands you, for
-  // the sections whose sub-content only exists at a particular depth of the scrub. MACHINES
-  // lands on the materialized board, JOURNEY on the fully-formed overview (and its sub-ticks
-  // inside the zoomed browsing hold); CONTACT is simply the bottom of the page.
+  // the sections whose sub-content only exists at a particular depth of the scrub; `subsAt` =
+  // one depth PER sub-tick, for MACHINES, whose four sub-ticks are four beats of one scrub
+  // rather than four things you switch between. MACHINES' main tick lands on the materialized
+  // board, JOURNEY's on the fully-formed overview (and its sub-ticks inside the zoomed
+  // browsing hold); CONTACT is simply the bottom of the page.
   const SECTIONS = [
     { label: '00 — HOME',          subs: [],      at: 0 },
     { label: '01 — FIELD CONTROL', subs: cards,   at: 1 },
-    { label: '02 — MACHINES',      subs: [],      at: 3.9 },
-    { label: '03 — JOURNEY',       subs: jnCards, at: 6.0, subAt: 6.8 },
-    { label: '04 — CONTACT',       subs: [],      at: 7.5 },
+    { label: '02 — MACHINES',      subs: mCards,  at: 3.85, subsAt: [3.85, 4.4, 5.0, 5.5] },
+    { label: '03 — JOURNEY',       subs: jnCards, at: 6.9, subAt: 7.7 },
+    { label: '04 — CONTACT',       subs: [],      at: 8.4 },
   ];
   const LAST = SECTIONS.length - 1;
-  // The whole scroll story, in seven numbers [·H]. Everything else is derived:
-  //   hero [0,1) · fields [1,2) · machines [2,5) · journey [5,7.2) · contact [7.2,7.5]
-  //   inside machines: morph [2,3.8] · arm [3.8,4.6] · exit [4.6,5]
-  //   inside journey:  overview [5,6] -> t4 0…0.45 · zoom [6,6.6] -> t4 0.45…1 · hold [6.6,7.2)
-  const M0 = 2, MORPH = 1.8, ARM = 0.8, EXIT = 0.4;
+  // The whole scroll story, in ten numbers [·H]. Everything else is derived:
+  //   hero [0,1) · fields [1,2) · machines [2,5.9) · journey [5.9,8.1) · contact [8.1,8.4]
+  //   inside machines: morph [2,3.8] · band [3.8,4.4] · arm [4.4,5] · algo [5,5.5] · exit [5.5,5.9]
+  //   inside journey:  overview [5.9,6.9] -> t4 0…0.45 · zoom [6.9,7.5] -> t4 0.45…1 · hold [7.5,8.1)
+  const M0 = 2, MORPH = 1.8, BAND = 0.6, ARM = 0.6, ALGO = 0.5, EXIT = 0.4;
   const JOVER = 1.0, JZOOM = 0.6, JOUR = 2.2, CFIN = 0.3;
-  const A0 = M0 + MORPH;      // 3.8 — the board docks into the machine from here
-  const X0 = A0 + ARM;        // 4.6 — the machine story is told; the exit hands the sheet back
-  const J0 = X0 + EXIT;       // 5.0 — the stars
-  const C0 = J0 + JOUR;       // 7.2 — the outro (7.5 = the last pixel of the document)
-  const machinesCard = document.getElementById('machines-card');
+  const B0 = M0 + MORPH;      // 3.8 — the hand comes up and the board docks onto the wrist
+  const A0 = B0 + BAND;       // 4.4 — the arm arrives and the signal line draws
+  const G0 = A0 + ARM;        // 5.0 — pull back off the hardware: the algorithm layer
+  const X0 = G0 + ALGO;       // 5.5 — the machine story is told; the exit hands the sheet back
+  const J0 = X0 + EXIT;       // 5.9 — the stars
+  const C0 = J0 + JOUR;       // 8.1 — the outro (8.4 = the last pixel of the document)
   const journeyCard = document.getElementById('journey-card');
   const contactBlock = document.getElementById('contact-block');
   const jrNodes = [...document.querySelectorAll('.jr-node')];
@@ -581,23 +651,27 @@ try {
     </div>`).join('');
   const tlSecs = [...tl.children];
   const subsOf = k => [...tlSecs[k].querySelectorAll('.tl-sub')];
-  const fieldSubs = subsOf(FSEC), planetSubs = subsOf(JSEC);
+  const fieldSubs = subsOf(FSEC), machineSubs = subsOf(MSEC), planetSubs = subsOf(JSEC);
 
   // vSec starts at 0 because the page boots into the word: re-targeting it here would cut
   // the gas → ramp intro short. render() only touches the DOM, never PHY.
   let vSec = 0, fieldIdx = 0, planetIdx = 0, zoomed = false;
   let s = scrollY;
   let qaSec = null;   // QA override: pin a section without scrolling (hidden-tab captures composite fixed layers wrongly at scrollY != 0)
-  let qMorph = null, qArm = null, qExit = null, qJour = null, qFin = null;   // same idea for the scrub numbers: null = follow the scroll
+  // same idea for the scrub numbers: null = follow the scroll
+  let qMorph = null, qBand = null, qArm = null, qAlgo = null, qExit = null, qJour = null, qFin = null;
   // boundary-based, not round(s/H): the machines section is 3 viewports tall, so a
   // nearest-multiple rule would hand most of it to a section that does not exist.
   // the −1px: s only ever approaches its target asymptotically (the lerp), so a boundary
   // tested exactly would never be reached from below — scrollTo(1H) has to land in fields.
   const secAt = () => (s < innerHeight - 1 ? 0 : s < M0 * innerHeight - 1 ? FSEC
     : s < J0 * innerHeight - 1 ? MSEC : s < C0 * innerHeight - 1 ? JSEC : CSEC);
-  const morphAt = () => c01((s - M0 * innerHeight) / (MORPH * innerHeight));
-  const armAt = () => c01((s - A0 * innerHeight) / (ARM * innerHeight));
-  const exitAt = () => c01((s - X0 * innerHeight) / (EXIT * innerHeight));
+  const beatAt = (t0, len) => c01((s - t0 * innerHeight) / (len * innerHeight));
+  const morphAt = () => beatAt(M0, MORPH);
+  const bandAt = () => beatAt(B0, BAND);
+  const armAt = () => beatAt(A0, ARM);
+  const algoAt = () => beatAt(G0, ALGO);
+  const exitAt = () => beatAt(X0, EXIT);
   // two-piece ramp, then a HOLD: the last 0.6H of the journey pane is where you browse the
   // stars horizontally, so t4 must sit still at 1 there instead of running out of scroll.
   const jourAt = () => {
@@ -627,18 +701,32 @@ try {
     });
   }
 
-  // the scrubbed chapters, in full: five numbers and their cards. Called from the scroll tick
+  // the scrubbed chapters, in full: seven numbers and their cards. Called from the scroll tick
   // and from the QA hook, so both paths run exactly the same visual update.
   // ORDER MATTERS: setJourney first, because t4 is what decides who owns λ (the stars keep
   // the beads released for the rest of the page) — every later setter re-derives on top of it.
   function scrub() {
     const tm = mAt(), tx = qExit !== null ? qExit : exitAt(), tj = jAt();
+    const tb = qBand !== null ? qBand : bandAt();
+    const t2 = qArm !== null ? qArm : armAt();
+    const tg = qAlgo !== null ? qAlgo : algoAt();
     hero.setJourney(tj);
     hero.setFinale(qFin !== null ? qFin : finAt());
     hero.setExit(tx);
+    hero.setAlgo(tg);
     hero.setMorph(tm);
-    hero.setArm(qArm !== null ? qArm : armAt());
-    machinesCard.classList.toggle('active', tm > 0.75 && tx < 0.2);
+    hero.setBand(tb);
+    hero.setArm(t2);
+    // one card per beat, one card at a time: the LATEST beat that has come up owns the corner,
+    // so the chain reads BOARD -> SENSE -> ACT -> LEARN with no crossfade pile-up. The board
+    // card bows out as soon as the hand starts arriving (tb > 0.1) — it is the same object.
+    const live = tx < 0.2;
+    const shown = [tm > 0.75 && tb <= 0.1, tb > 0.7, t2 > 0.6, tg > 0.3];
+    const top = live ? shown.lastIndexOf(true) : -1;
+    mCards.forEach((c, k) => c.classList.toggle('active', k === top));
+    // …and the sub-ticks follow the SCROLL, not the card: which beat you are standing in
+    const mi = tg > 0 ? 3 : t2 > 0 ? 2 : tb > 0 ? 1 : 0;
+    machineSubs.forEach((b, j) => b.classList.toggle('on', vSec === MSEC && j === mi));
     const z = tj > 0.75;                        // zoomed: the card and the star dock come up
     if (z !== zoomed) { zoomed = z; render(); }
     // the projected labels name the OVERVIEW; once the zoom starts the card takes over
@@ -705,11 +793,15 @@ try {
     render();
   }
 
-  // under qaSec the window must stay at scrollY 0, so jump the state instead of scrolling
-  function goSec(i, sub) {
+  // under qaSec the window must stay at scrollY 0, so jump the state instead of scrolling.
+  // j = the sub-tick index, or null for the section's main tick.
+  function goSec(i, j) {
     i = clamp(i, LAST);
     if (qaSec !== null) { qaSec = i; setSection(i); return; }
-    const to = sub && SECTIONS[i].subAt !== undefined ? SECTIONS[i].subAt : SECTIONS[i].at;
+    const S = SECTIONS[i];
+    const to = j == null ? S.at
+      : S.subsAt ? S.subsAt[j]                      // a beat of a scrub: its own depth
+        : S.subAt !== undefined ? S.subAt : S.at;   // …or one depth for the whole switcher
     scrollTo({ top: to * innerHeight, behavior: 'smooth' });
   }
 
@@ -739,7 +831,7 @@ try {
     if (!sec) return;
     const k = +sec.dataset.k, sub = e.target.closest('.tl-sub');
     if (sub) {
-      goSec(k, true);
+      goSec(k, +sub.dataset.j);
       if (k === FSEC) setField(+sub.dataset.j);
       else if (k === JSEC) setPlanet(+sub.dataset.j);
     } else if (e.target.closest('.tl-tick')) goSec(k);
@@ -783,7 +875,9 @@ try {
   // QA hook: rAF is suspended in hidden tabs, so tick() never runs there — advance() pulls
   // the scroll position in itself, section(i) jumps to a major section and field(j) to a field.
   //   __hero.section(1); __hero.field(2); __hero.advance(4)
-  //   __hero.section(2); __hero.arm(0.9); __hero.advance(2); __hero.boardStats()
+  //   __hero.section(2); __hero.band(1); __hero.advance(2); __hero.boardStats()
+  //   __hero.arm(0.9); __hero.advance(1)            // the arm in, the signal line drawn
+  //   __hero.algo(1); __hero.advance(1)             // the stage dimmed to a ghost
   //   __hero.section(3); __hero.advance(3)          // the machine put away, zoomed on UT Austin
   //   __hero.journey(0.3); __hero.advance(1)        // the overview, forming
   //   __hero.planet(0); __hero.advance(1)           // cruise back down the line to USTC
@@ -800,7 +894,9 @@ try {
     setSection(qaSec);            // no scrollTo: state only, window stays at 0 for clean captures
     const done = qaSec > MSEC;    // journey/contact: the machine story is over and put away
     qMorph = qaSec >= MSEC ? 1 : 0;    // section(2) = the board, materialized and not yet docked
+    qBand = done ? 1 : 0;
     qArm = done ? 1 : 0;
+    qAlgo = done ? 1 : 0;
     qExit = done ? 1 : 0;
     qJour = done ? 1 : 0;         // section(3) = ZOOMED, not the overview; section(4) keeps it
     qFin = qaSec === CSEC ? 1 : 0;
@@ -810,7 +906,9 @@ try {
   __hero.field = j => setField(j);
   __hero.planet = j => setPlanet(j);
   __hero.morph = v => { qMorph = c01(+v); scrub(); };   // pinned against the scroll driver, like qaSec
+  __hero.band = v => { qBand = c01(+v); scrub(); };
   __hero.arm = v => { qArm = c01(+v); scrub(); };
+  __hero.algo = v => { qAlgo = c01(+v); scrub(); };
   __hero.exit = v => { qExit = c01(+v); scrub(); };
   __hero.journey = v => { qJour = c01(+v); scrub(); };
   __hero.finale = v => { qFin = c01(+v); scrub(); };
