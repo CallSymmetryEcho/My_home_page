@@ -32,7 +32,11 @@ const BEAD_R = 2.6;                       // bead geometry radius [world units]
 const FADE0 = 0.45;                       // sheet edge fade starts at this normalised radius
 const C = PHY.CONFIG;
 
-export function createHero(canvas) {
+// opts (all optional, all for the board morph — see setMorph):
+//   board     already-parsed board JSON; skips the fetch entirely
+//   boardUrl  where to fetch it from instead (default './js/data/board-hswb.json')
+//   logoUrl   silkscreen logo sprite (default 'image/logo-bin-mono.png')
+export function createHero(canvas, opts = {}) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let W = canvas.clientWidth || innerWidth, H = canvas.clientHeight || innerHeight;
 
@@ -252,19 +256,35 @@ export function createHero(canvas) {
     scene.add(m);
   }
 
+  // --- render overrides owned by the board morph (see setMorph below). Physics keeps
+  // stepping either way; these only change where a bead is DRAWN.
+  let beadScale = 1;                                // released beads shrink to a dim gas
+  let pulseOn = false;                              // >= stage 3: some beads ride the traces
+  const pulseSlot = new Int32Array(N).fill(-1);     // bead index -> pulse slot, -1 = normal
+  let pulsePos = new Float32Array(0);               // [x, y] per pulse, physics px
+
   const M4 = new THREE.Matrix4();
   function placeBeads(mesh, idx) {
     const { px, py, pz } = PHY.state;
     const cy0 = SHEET_Y * H, cx = W / 2, cy = H / 2;
     for (let k = 0; k < idx.length; k++) {
-      const i = idx[k], s = scl[i];
-      const u = (px[i] - cx) * PLANE_S;         // along û
-      const w = (cy - py[i]) * PLANE_S;         // along ŵ (screen-y is inverted)
-      // along n̂: rest on the local sheet height, lifted by the bead's own radius, plus
-      // the thermal z bob. Beads therefore ride their own dimples and roll into the wells.
-      // ride the wells only partially: full ride drags the glyph shape down with the
-      // fabric and smears the word; 0.35 keeps the visual coupling without the warp
-      const n = heightAt(px[i], py[i]) * 0.35 + BEAD_R * s + 0.5 * pz[i];
+      const i = idx[k];
+      const slot = pulseOn ? pulseSlot[i] : -1;
+      let s = scl[i], x, y, n;
+      if (slot >= 0) {
+        // a signal pulse: pinned to its trace, riding just above the copper
+        x = pulsePos[slot * 2]; y = pulsePos[slot * 2 + 1]; n = PULSE_N;
+      } else {
+        s *= beadScale;
+        x = px[i]; y = py[i];
+        // along n̂: rest on the local sheet height, lifted by the bead's own radius, plus
+        // the thermal z bob. Beads therefore ride their own dimples and roll into the wells.
+        // ride the wells only partially: full ride drags the glyph shape down with the
+        // fabric and smears the word; 0.35 keeps the visual coupling without the warp
+        n = heightAt(x, y) * 0.35 + BEAD_R * s + 0.5 * pz[i];
+      }
+      const u = (x - cx) * PLANE_S;             // along û
+      const w = (cy - y) * PLANE_S;             // along ŵ (screen-y is inverted)
       M4.makeScale(s, s, s);
       M4.setPosition(u, cy0 + w * SINP + n * COSP, -w * COSP + n * SINP);
       mesh.setMatrixAt(k, M4);
@@ -370,6 +390,310 @@ export function createHero(canvas) {
     coreMat.opacity = Math.min(1, 0.85 * k);
   }
 
+  // ------------------------------------------------------------ the board morph (chapter ③)
+  // The sheet does not GROW a circuit board — its own grid lines REROUTE into one. Every
+  // trace vertex is born on the nearest DRAWN lattice line (a row line for horizontal-ish
+  // traces, a column line for vertical-ish ones, the closer of the two for diagonals) and
+  // slides to its board coordinate. The slide is staggered left → right, so the fabric
+  // un-weaves as a ripple across the sheet instead of snapping as one block.
+  //
+  // setMorph(t) is the whole API and it is a PURE FUNCTION of t — no wall-clock tweens, so
+  // scrubbing backwards undoes every stage exactly. Stages:
+  //   .00 → .25  release    λ handed to the morph (PHY.holdRelease) — beads free, sheet flattens
+  //   .25 → .60  un-weave   fabric lines fade out as the trace layer slides off the lattice
+  //   .60 → .85  crystallise solder mask · outline · pads · silkscreen · logo fade in
+  //   .85 → 1    pull back  camera dollies out ×DOLLY; the board reads as one object
+  const BOARD_URL = './js/data/board-hswb.json';
+  const LOGO_URL = 'image/logo-bin-mono.png';
+  const BOARD_ROT = 90;      // knob: board rotation on the sheet [deg]. 90° = portrait board -> landscape frame
+  const BOARD_W = 0.52;      // board width AFTER rotation, as a fraction of the viewport W
+  const TRACE_N = 0.9;       // trace layer lift along n̂ [world]
+  const FACE_N = 0.2;        // solder-mask quad, just under the copper
+  const SILK_N = 1.4;        // silkscreen sits on top of the mask
+  const PULSE_N = 2.4;       // signal pulses ride above the traces
+  const SILK_F = 0.024;      // silkscreen cap height, as a fraction of the board height
+  const LOGO_F = 0.11;       // logo sprite size, ditto
+  const PULSE_SPEED = 90;    // px/s along a trace
+  const N_PULSE = 50;
+  const STAGGER = 0.18;      // per-trace slide duration, inside the .25 → .60 stage
+  const DOLLY = 1.6;         // camera distance multiplier at t = 1
+  const SILK_EVERY = 3;      // draw every Nth reference designator (23 -> 8)
+
+  const ss = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+  const stg = (t, a, b) => ss((t - a) / (b - a));
+
+  // physics px -> the tilted sheet, n along n̂. Same map as placeBeads, written into a buffer.
+  function sheetXYZ(x, y, n, out, o) {
+    const w = (H / 2 - y) * PLANE_S;
+    out[o] = (x - W / 2) * PLANE_S;
+    out[o + 1] = SHEET_Y * H + w * SINP + n * COSP;
+    out[o + 2] = -w * COSP + n * SINP;
+  }
+
+  let board = null, boardBusy = false, boardFail = false;
+  let morphT = 0, held = false, dolly = 1;
+
+  const boardGrp = new THREE.Group();
+  boardGrp.visible = false;
+  scene.add(boardGrp);
+
+  const emptyPos = () => new THREE.BufferAttribute(new Float32Array(0), 3);
+  const lineMat = c => new THREE.LineBasicMaterial({
+    color: c, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+
+  const traceGeo = new THREE.BufferGeometry(); traceGeo.setAttribute('position', emptyPos());
+  const traceMat = lineMat(0xffffff);
+  const traceLines = new THREE.LineSegments(traceGeo, traceMat);
+
+  const outGeo = new THREE.BufferGeometry(); outGeo.setAttribute('position', emptyPos());
+  const outMat = lineMat(0xdfeef0);
+  const outline = new THREE.Line(outGeo, outMat);
+
+  const padGeo = new THREE.BufferGeometry(); padGeo.setAttribute('position', emptyPos());
+  const padMat = lineMat(0xffffff);
+  const padLines = new THREE.LineSegments(padGeo, padMat);
+
+  // solder mask: barely lighter than the void, but enough that the board reads as a SOLID
+  const faceGeo = new THREE.BufferGeometry();
+  faceGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(12), 3));
+  faceGeo.setIndex([0, 1, 2, 0, 2, 3]);
+  const faceMat = new THREE.MeshBasicMaterial({ color: 0x05070d, transparent: true, opacity: 0, depthWrite: false });
+  const face = new THREE.Mesh(faceGeo, faceMat);
+  face.renderOrder = -1;                       // under the copper, over the (faded) fabric
+
+  const silkGrp = new THREE.Group();
+  for (const o of [face, traceLines, outline, padLines, silkGrp]) { o.frustumCulled = false; boardGrp.add(o); }
+
+  // per-trace source/target endpoints in PHYSICS px: [ax, ay, bx, by]
+  let NT = 0, srcRows = 0;
+  let tSrc = new Float32Array(0), tTgt = new Float32Array(0);
+  let tOrd = new Float32Array(0), tLen = new Float32Array(0), srcLine = new Int32Array(0);
+  const pSeg = new Int32Array(N_PULSE), pS = new Float32Array(N_PULSE);
+
+  // board unit square -> physics px. Board units are (aspect × 1), so the rotation knob is
+  // an honest rotation and BOARD_W measures the box the viewer actually sees.
+  const RAD = BOARD_ROT * Math.PI / 180, CR = Math.cos(RAD), SR = Math.sin(RAD);
+  let bs = 1, bcx = 0, bcy = 0, bw = 0, bh = 0;
+  const t1 = [0, 0], t2 = [0, 0], v3 = new Float32Array(3);
+  function b2p(bx, by, out) {
+    const X = (bx - 0.5) * board.aspect, Y = by - 0.5;
+    out[0] = bcx + (X * CR - Y * SR) * bs;
+    out[1] = bcy + (X * SR + Y * CR) * bs;
+  }
+  // a fraction of the ROTATED board box — for things placed against what the viewer sees
+  function box2p(fx, fy, out) { out[0] = bcx + (fx - 0.5) * bw; out[1] = bcy + (fy - 0.5) * bh; }
+
+  function textSprite(txt) {
+    const cv = document.createElement('canvas');
+    cv.width = 96; cv.height = 32;
+    const c = cv.getContext('2d');
+    c.font = '600 21px ui-monospace, Menlo, monospace';
+    c.fillStyle = '#e6f2f4'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(txt, 48, 17);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return new THREE.Sprite(new THREE.SpriteMaterial({
+      map: tex, transparent: true, opacity: 0, depthWrite: false, depthTest: false,
+    }));
+  }
+
+  function setBoard(j) {
+    board = j;
+    NT = j.traces.length;
+    tSrc = new Float32Array(NT * 4); tTgt = new Float32Array(NT * 4);
+    tOrd = new Float32Array(NT); tLen = new Float32Array(NT); srcLine = new Int32Array(NT);
+    traceGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NT * 6), 3));
+    traceGeo.attributes.position.setUsage(THREE.DynamicDrawUsage);
+    outGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(j.outline[0].length * 3), 3));
+    // rect/roundrect pads draw as a rectangle (4 segments), round ones as a cross (2)
+    let pv = 0;
+    for (const p of j.pads) pv += p.shape === 'oval' || p.shape === 'circle' ? 4 : 8;
+    padGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pv * 3), 3));
+
+    // silkscreen: a sample of the reference designators, plus the JAKIE mark on the mask
+    for (let i = 0; i < j.silk.length; i += SILK_EVERY) {
+      const sp = textSprite(j.silk[i].text);
+      sp.userData.b = [j.silk[i].x, j.silk[i].y];
+      silkGrp.add(sp);
+    }
+    const tex = new THREE.TextureLoader().load(opts.logoUrl || LOGO_URL, undefined, undefined,
+      () => console.warn('board morph: silkscreen logo missing —', opts.logoUrl || LOGO_URL));
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const logo = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: tex, transparent: true, opacity: 0, depthWrite: false, depthTest: false,
+      blending: THREE.AdditiveBlending,
+    }));
+    logo.userData.box = [0.5, 0.84];             // centre-bottom of what the viewer sees
+    silkGrp.add(logo);
+
+    buildBoardGeom();
+    // pulses: the amber tracers first, then the lowest indices. Phase = a random start.
+    const pick = [...idxTrac, ...idxMain].slice(0, N_PULSE);
+    pulsePos = new Float32Array(pick.length * 2);
+    pick.forEach((i, k) => {
+      pulseSlot[i] = k;
+      pSeg[k] = (Math.random() * NT) | 0;
+      pS[k] = Math.random() * tLen[pSeg[k]];
+    });
+    advancePulses(0);
+    updateMorph();
+  }
+
+  function loadBoard() {
+    if (opts.board) { setBoard(opts.board); return; }
+    boardBusy = true;
+    fetch(opts.boardUrl || BOARD_URL)
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+      .then(setBoard)
+      .catch(e => {
+        boardFail = true; boardBusy = false;   // fail soft: the morph still releases the field, just no board
+        console.warn('board morph: no board data, morph limited to the field release —', e.message);
+      });
+  }
+
+  // Everything that depends on W/H lives here, so a resize is just a rebuild.
+  function buildBoardGeom() {
+    const g = PHY.grid;
+    bw = BOARD_W * W;
+    bs = bw / (Math.abs(board.aspect * CR) + Math.abs(SR));
+    bh = bs * (Math.abs(board.aspect * SR) + Math.abs(CR));
+    bcx = W / 2; bcy = C.wordY * H;              // centred on the word band
+
+    // nearest DRAWN lattice line. The fabric draws every 2nd index (see the index build
+    // above), so the snap is to an EVEN row/column.
+    const jMax = (GH - 1) & ~1, iMax = (GW - 1) & ~1;
+    const rowJ = y => Math.max(0, Math.min(jMax, 2 * Math.round((y - g.y0) / g.dy / 2)));
+    const colI = x => Math.max(0, Math.min(iMax, 2 * Math.round((x - g.x0) / g.dx / 2)));
+
+    srcRows = 0;
+    for (let k = 0; k < NT; k++) {
+      const tr = board.traces[k], o = k * 4;
+      b2p(tr.a[0], tr.a[1], t1); b2p(tr.b[0], tr.b[1], t2);
+      tTgt[o] = t1[0]; tTgt[o + 1] = t1[1]; tTgt[o + 2] = t2[0]; tTgt[o + 3] = t2[1];
+      const dx = Math.abs(t2[0] - t1[0]), dy = Math.abs(t2[1] - t1[1]);
+      // 4 px floor: a sub-pixel stub must never stall a pulse walking it
+      tLen[k] = Math.max(4, Math.hypot(dx, dy));
+      const mx = (t1[0] + t2[0]) / 2, my = (t1[1] + t2[1]) / 2;
+      const j = rowJ(my), i = colI(mx);
+      const ry = g.y0 + j * g.dy, rx = g.x0 + i * g.dx;
+      // horizontal-ish -> a piece of the nearest ROW line, vertical-ish -> nearest COLUMN,
+      // diagonal -> whichever line it already sits closer to.
+      const useRow = dy < 0.4 * dx ? true : dx < 0.4 * dy ? false
+        : Math.abs(my - ry) <= Math.abs(mx - rx);
+      if (useRow) {
+        tSrc[o] = t1[0]; tSrc[o + 1] = ry; tSrc[o + 2] = t2[0]; tSrc[o + 3] = ry;
+        srcLine[k] = j; srcRows++;
+      } else {
+        tSrc[o] = rx; tSrc[o + 1] = t1[1]; tSrc[o + 2] = rx; tSrc[o + 3] = t2[1];
+        srcLine[k] = -1 - i;
+      }
+    }
+    // stagger left -> right across the sheet: the reroute reads as a wave, not a cut
+    const ord = [...Array(NT).keys()].sort((a, b) => (tTgt[a * 4] + tTgt[a * 4 + 2]) - (tTgt[b * 4] + tTgt[b * 4 + 2]));
+    ord.forEach((k, r) => { tOrd[k] = NT > 1 ? r / (NT - 1) : 0; });
+
+    const op = outGeo.attributes.position.array;
+    board.outline[0].forEach((p, i) => { b2p(p[0], p[1], t1); sheetXYZ(t1[0], t1[1], TRACE_N, op, i * 3); });
+    outGeo.attributes.position.needsUpdate = true;
+
+    const pp = padGeo.attributes.position.array;
+    let n = 0;
+    const seg = (x1, y1, x2, y2) => {
+      b2p(x1, y1, t1); sheetXYZ(t1[0], t1[1], TRACE_N, pp, n); n += 3;
+      b2p(x2, y2, t2); sheetXYZ(t2[0], t2[1], TRACE_N, pp, n); n += 3;
+    };
+    for (const p of board.pads) {
+      const hx = p.sx / 2, hy = p.sy / 2;
+      if (p.shape === 'oval' || p.shape === 'circle') {
+        seg(p.x - hx, p.y, p.x + hx, p.y); seg(p.x, p.y - hy, p.x, p.y + hy);
+      } else {
+        seg(p.x - hx, p.y - hy, p.x + hx, p.y - hy); seg(p.x + hx, p.y - hy, p.x + hx, p.y + hy);
+        seg(p.x + hx, p.y + hy, p.x - hx, p.y + hy); seg(p.x - hx, p.y + hy, p.x - hx, p.y - hy);
+      }
+    }
+    padGeo.attributes.position.needsUpdate = true;
+
+    const fp = faceGeo.attributes.position.array;
+    [[0, 0], [1, 0], [1, 1], [0, 1]].forEach((c, i) => {
+      b2p(c[0], c[1], t1); sheetXYZ(t1[0], t1[1], FACE_N, fp, i * 3);
+    });
+    faceGeo.attributes.position.needsUpdate = true;
+
+    const sh = SILK_F * bh * PLANE_S, ls = LOGO_F * bh * PLANE_S;
+    for (const sp of silkGrp.children) {
+      if (sp.userData.box) { box2p(sp.userData.box[0], sp.userData.box[1], t1); sp.scale.set(ls, ls, 1); }
+      else { b2p(sp.userData.b[0], sp.userData.b[1], t1); sp.scale.set(sh * 3, sh, 1); }
+      sheetXYZ(t1[0], t1[1], SILK_N, v3, 0);
+      sp.position.set(v3[0], v3[1], v3[2]);
+    }
+  }
+
+  // Pulses walk one segment at a time; at its end they respawn at a random segment start.
+  // ponytail: no net graph — jumps between disconnected nets read as flowing signals anyway.
+  // Upgrade path: sort segments into nets and walk them if the jumps ever look wrong.
+  function advancePulses(dt) {
+    const d = PULSE_SPEED * Math.min(dt, 0.25);   // a big advance() must not spin this loop
+    for (let k = 0; k < N_PULSE; k++) {
+      let s = pS[k] + d, seg = pSeg[k];
+      while (s > tLen[seg]) { s -= tLen[seg]; seg = (Math.random() * NT) | 0; }
+      pSeg[k] = seg; pS[k] = s;
+      const o = seg * 4, u = s / tLen[seg];
+      pulsePos[k * 2] = tTgt[o] + (tTgt[o + 2] - tTgt[o]) * u;
+      pulsePos[k * 2 + 1] = tTgt[o + 1] + (tTgt[o + 3] - tTgt[o + 1]) * u;
+    }
+  }
+
+  function updateMorph() {
+    const t = morphT;
+    // stage 1 — hand λ to the morph and keep it down for as long as the morph is running
+    const want = t > 0.002;
+    if (want !== held) { held = want; PHY.holdRelease(want); }
+    beadScale = 1 - 0.55 * stg(t, 0.05, 0.5);     // released beads recede to a dim gas
+    dolly = 1 + (DOLLY - 1) * stg(t, 0.85, 1);
+
+    if (!board) { pulseOn = false; return; }
+
+    // stage 2 — the fabric hands its lines over to the copper
+    const s2 = stg(t, 0.25, 0.6), s3 = stg(t, 0.6, 0.85);
+    fabMat.opacity = 1 - s2;
+    fabric.visible = fabMat.opacity > 0.004;
+
+    traceMat.opacity = stg(t, 0.25, 0.36);
+    boardGrp.visible = traceMat.opacity > 0.002;
+    // only the 150-vertex-pair rewrite is skipped when the layer is invisible; every
+    // opacity below still tracks t, so scrubbing back leaves no flag lying about its state
+    if (boardGrp.visible) {
+      const p = traceGeo.attributes.position.array, span = (0.6 - 0.25) - STAGGER;
+      for (let k = 0; k < NT; k++) {
+        const u = ss((t - (0.25 + span * tOrd[k])) / STAGGER), o = k * 4;
+        sheetXYZ(tSrc[o] + (tTgt[o] - tSrc[o]) * u,
+          tSrc[o + 1] + (tTgt[o + 1] - tSrc[o + 1]) * u, TRACE_N, p, k * 6);
+        sheetXYZ(tSrc[o + 2] + (tTgt[o + 2] - tSrc[o + 2]) * u,
+          tSrc[o + 3] + (tTgt[o + 3] - tSrc[o + 3]) * u, TRACE_N, p, k * 6 + 3);
+      }
+      traceGeo.attributes.position.needsUpdate = true;
+    }
+
+    // stage 3 — the board becomes an object
+    faceMat.opacity = 0.92 * s3;
+    outMat.opacity = 0.50 * s3;
+    padMat.opacity = 0.45 * s3;
+    for (const sp of silkGrp.children) sp.material.opacity = (sp.userData.box ? 0.20 : 0.42) * s3;
+    const on = s3 > 0.004;
+    face.visible = outline.visible = padLines.visible = silkGrp.visible = on;
+
+    pulseOn = t >= 0.6;
+  }
+
+  // t ∈ [0, 1], scrub-safe in both directions. The board JSON is fetched lazily on the
+  // first t > 0 (or taken from opts.board); until it lands only stage 1 runs.
+  function setMorph(t) {
+    morphT = t > 0 ? (t < 1 ? t : 1) : 0;
+    if (morphT > 0 && !board && !boardBusy && !boardFail) loadBoard();
+    updateMorph();
+  }
+
   // ------------------------------------------------------------ post
   const composer = new EffectComposer(renderer);   // picks up the renderer's size + DPR
   // the canvas `antialias` flag does nothing once we render into composer targets, and
@@ -385,6 +709,7 @@ export function createHero(canvas) {
   const plane = new THREE.Plane();   // the tilted sheet, for pointer picking
   const nrm = new THREE.Vector3(0, COSP, SINP);
   const ctr = new THREE.Vector3();
+  let camZ = 0;
 
   function relayout() {
     // static half of the fabric: only the n̂ displacement animates, so x is fixed here
@@ -407,12 +732,15 @@ export function createHero(canvas) {
 
     // the sheet fills the frame; the word (physics y = wordY·H, up-slope of centre)
     // reads at ~70% frame width and sits in the upper half.
-    baseY = CAM_Y * H;
+    baseY = CAM_Y * H; camZ = CAM_Z * H;
     look.set(0, SHEET_Y * H, 0);
-    camera.position.set(0, baseY, CAM_Z * H);
+    camera.position.set(0, baseY, camZ);
     camera.lookAt(look);
     ctr.set(0, SHEET_Y * H, 0);
     plane.setFromNormalAndCoplanarPoint(nrm, ctr);
+
+    // the board is authored in viewport px, so a resize is simply a rebuild
+    if (board) { buildBoardGeom(); updateMorph(); }
 
     // beam hangs from the sky down to the group origin (the impact point)
     const bl = BEAM_LEN * H;
@@ -466,8 +794,19 @@ export function createHero(canvas) {
   // ------------------------------------------------------------ loop
   // every rendered frame goes through here — rAF, the QA hook and the reduced-motion
   // still frame alike, so the laser can never be a rAF-only decoration
+  // parallax + the morph's dolly in one place: the dolly scales the camera's offset FROM
+  // the look point, so pulling back never breaks the pointer parallax.
+  // rate 1 = snap (the synchronous QA path), 0.05 = the usual eased follow.
+  function trackCamera(rate) {
+    camera.position.x += (ndc.x * 0.02 * H - camera.position.x) * rate;
+    camera.position.y += (look.y + (baseY - look.y) * dolly + ndc.y * 0.02 * H - camera.position.y) * rate;
+    camera.position.z += (camZ * dolly - camera.position.z) * rate;
+    camera.lookAt(look);
+  }
+
   function drawFrame(dt) {
     updateLaser(dt);
+    if (pulseOn) advancePulses(dt);
     placeBeads(meshMain, idxMain);
     placeBeads(meshTrac, idxTrac);
     composer.render();
@@ -481,9 +820,7 @@ export function createHero(canvas) {
     while (acc >= C.dt) { PHY.step(C.dt); acc -= C.dt; }
 
     stars.rotation.y += 0.0015 * dt;
-    camera.position.x += (ndc.x * 0.02 * H - camera.position.x) * 0.05;
-    camera.position.y += (baseY + ndc.y * 0.02 * H - camera.position.y) * 0.05;
-    camera.lookAt(look);
+    trackCamera(0.05);
 
     updateFabric();
     drawFrame(dt);
@@ -503,6 +840,8 @@ export function createHero(canvas) {
     advance(seconds) {
       const n = Math.max(1, Math.round(seconds / C.dt));
       for (let i = 0; i < n; i++) { PHY.step(C.dt); updateFabric(); }
+      updateMorph();          // the morph is a visual, so it must run on the sync path too
+      trackCamera(1);
       drawFrame(n * C.dt);
     },
     setPointer: (x, y) => PHY.setPointer(x, y),
@@ -510,6 +849,30 @@ export function createHero(canvas) {
     melt: () => PHY.melt(),
     mode: () => PHY.getMode(),
     lambda: () => PHY.getLambda(),
+    setMorph,
+    // everything the morph can get wrong, in one readable object
+    boardStats() {
+      if (!board) return { board: null, failed: boardFail, pending: boardBusy, t: morphT };
+      let mn = Infinity, mx = 0, len = 0, bad = 0;
+      for (let k = 0; k < NT; k++) {
+        const o = k * 4;
+        mn = Math.min(mn, Math.hypot(tSrc[o] - tTgt[o], tSrc[o + 1] - tTgt[o + 1]));
+        mx = Math.max(mx, Math.hypot(tSrc[o + 2] - tTgt[o + 2], tSrc[o + 3] - tTgt[o + 3]));
+        len += Math.hypot(tTgt[o + 2] - tTgt[o], tTgt[o + 3] - tTgt[o + 1]);
+        const j = srcLine[k], i = j >= 0 ? j : -1 - j;   // row j, or column encoded as -1-i
+        if (i % 2 || i >= (j >= 0 ? GH : GW)) bad++;     // must land on a DRAWN (even) line
+      }
+      return {
+        board: board.name, traces: NT, badSource: bad, fromRows: srcRows, fromCols: NT - srcRows,
+        srcMinPx: +mn.toFixed(2), srcMaxPx: +mx.toFixed(2), pathLenPx: Math.round(len),
+        boardPx: [Math.round(bw), Math.round(bh)],
+        t: morphT, fabricOpacity: +fabMat.opacity.toFixed(3), fabricVisible: fabric.visible,
+        traceOpacity: +traceMat.opacity.toFixed(3), boardVisible: boardGrp.visible,
+        maskOpacity: +faceMat.opacity.toFixed(3), silkSprites: silkGrp.children.length,
+        pulseOn, pulses: pulsePos.length / 2, beadScale: +beadScale.toFixed(3),
+        dolly: +dolly.toFixed(3), lambda: +PHY.getLambda().toFixed(4), mode: PHY.getMode(),
+      };
+    },
   };
 
   if (reduced) {
@@ -526,6 +889,7 @@ export function createHero(canvas) {
   }
 
   return {
+    setMorph,
     dispose() {
       cancelAnimationFrame(raf);
       clearTimeout(rt);
@@ -536,6 +900,9 @@ export function createHero(canvas) {
       if (fpsEl) fpsEl.remove();
       bloom.dispose(); outPass.dispose(); composer.dispose();
       fabGeo.dispose(); beadGeo.dispose(); starGeo.dispose(); beamGeo.dispose();
+      traceGeo.dispose(); outGeo.dispose(); padGeo.dispose(); faceGeo.dispose();
+      traceMat.dispose(); outMat.dispose(); padMat.dispose(); faceMat.dispose();
+      for (const sp of silkGrp.children) { sp.material.map.dispose(); sp.material.dispose(); }
       fabMat.dispose(); starMat.dispose(); glassMat.dispose(); tracMat.dispose();
       beamMat.dispose(); glowMat.dispose(); coreMat.dispose();
       beamTex.dispose(); glowTex.dispose();

@@ -15,8 +15,10 @@
     --mono: ui-monospace, "SF Mono", Menlo, monospace;
   }
   * { margin: 0; box-sizing: border-box; }
-  /* single viewport: this chapter has no scroll story, only the board */
-  body { background: var(--bg); font-family: system-ui, sans-serif; height: 100vh; overflow: hidden; }
+  /* The scroll story IS the morph: 300vh of height, every visible element fixed, so the
+     only thing that moves is the sheet turning itself into a board.
+     scrollY / (2·innerHeight) -> t ∈ [0, 1] — the last pixel of scroll is t = 1. */
+  body { background: var(--bg); font-family: system-ui, sans-serif; height: 300vh; }
   canvas#c3d { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 
   .nav {
@@ -29,7 +31,9 @@
   .nav .mark {
     font-size: 13px; font-weight: 500; letter-spacing: .34em;
     color: var(--text); text-decoration: none;
+    display: flex; align-items: center; gap: 12px;
   }
+  .nav .mark img { height: 26px; width: auto; display: block; }
   .nav nav { display: flex; gap: clamp(18px, 3vw, 34px); }
   .nav nav a {
     font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
@@ -91,7 +95,7 @@
 <canvas id="c3d"></canvas>
 
 <header class="nav">
-  <a class="mark" href="#">BIN LIAN</a>
+  <a class="mark" href="#"><img src="image/logo-bin-mono.png" alt="">BIN LIAN</a>
   <nav>
     <a href="./hero3d-prototype.html">RESEARCH</a>
     <a href="#" aria-current="page">MACHINES</a>
@@ -121,6 +125,7 @@
 <script type="module">
 function fallback(why) {
   document.getElementById('c3d').style.display = 'none';
+  document.body.style.height = '100vh';   // the scroll story is the morph; without it there is nothing to scroll
   for (const el of document.querySelectorAll('.field-card')) el.style.display = 'none';
   const d = document.createElement('div');
   d.className = 'fallback-note';
@@ -133,40 +138,36 @@ function fallback(why) {
 // dynamic import so a missing importmap / module-resolution failure lands here too,
 // not just a runtime throw out of createHero (no WebGL2 -> same note)
 try {
-  const [scene3d, PHY, F] = await Promise.all([
-    import('./js/scene3d.js'), import('./js/physics.js'), import('./js/formations-pcb.js'),
-  ]);
-  scene3d.createHero(document.getElementById('c3d'));
-
+  const scene3d = await import('./js/scene3d.js');
+  const hero = scene3d.createHero(document.getElementById('c3d'));
   const card = document.querySelector('.field-card');
-  let formed = false;
-  // The board is not a tween: retarget() releases the word's field, lets the beads fly, and
-  // ramps the trace wells in. The card arrives with it.
-  function form() {
-    if (formed) return;
-    formed = true;
-    PHY.retarget(F.pcb(innerWidth, innerHeight));
-    card.classList.add('active');
+
+  // The scrub testbed. There is no formation swap any more: the word intro plays as it
+  // always did (t = 0 is the normal fields-style sheet), and scrolling drives ONE number.
+  // setMorph is a pure function of t, so the lerp here is the only smoothing in the system.
+  let t = 0, qaT = null;   // qaT pins t against the scroll driver for hidden-tab captures
+  const target = () => (qaT !== null ? qaT : Math.min(1, scrollY / (2 * innerHeight)));
+
+  function apply() {
+    hero.setMorph(t);
+    card.classList.toggle('active', t > 0.75);
   }
-  setTimeout(form, 2500);   // let the gas -> ramp intro settle first
 
-  // formations are generated against a viewport, so a resize needs new points.
-  // 260 ms > scene3d's own 200 ms resize debounce, so PHY.resize() has already run.
-  let rt = 0;
-  addEventListener('resize', () => {
-    clearTimeout(rt);
-    rt = setTimeout(() => { if (formed) PHY.retarget(F.pcb(innerWidth, innerHeight)); }, 260);
-  });
+  (function tick() {
+    requestAnimationFrame(tick);
+    t += (target() - t) * 0.10;
+    apply();
+  })();
 
-  // QA hook: createHero already published __hero. Timers are throttled in hidden tabs, so
-  // the first advance() forces the formation itself — __hero.advance(5) always lands on the
-  // finished board, whether or not the 2.5 s timer got to run.
+  // QA hook: rAF is suspended in hidden tabs, so tick() never runs there.
+  //   __hero.morph(0.5); __hero.advance(1); __hero.boardStats()
   const adv = __hero.advance;
-  __hero.advance = t => { form(); adv(t); };
+  __hero.advance = s => { apply(); adv(s); };
+  __hero.morph = v => { qaT = Math.max(0, Math.min(1, +v)); t = qaT; apply(); };
 
-  // reduced motion: createHero fast-forwards the word and stops rAF, so nothing would ever
-  // reach the board. Jump straight to it.
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) __hero.advance(6);
+  // reduced motion: createHero fast-forwards the word and stops rAF, so scrolling would
+  // never repaint. Land on the finished board in one synchronous step instead.
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { __hero.morph(1); __hero.advance(6); }
 } catch (e) {
   fallback(e);
 }
