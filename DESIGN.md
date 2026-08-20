@@ -74,5 +74,6 @@ hero3d-prototype.html Step1 交付物
 - [x] ④v3 落地：北极星星芒 sprite（512px 单纹理、缘部归零的移位高斯星芒）、星等分级、0.4Hz 呼吸；白徽入右卡（crest-*-mono.png）；巡游/CV/纪念碑+轨道环全链验证（无头 Chrome 管线，扩展断连期的替代 QA 通道）→ 待 Bin 实机终审
 - [ ] ⑤ Toolbox ⑥ Awards+Teaching 排布评估（规格类内容并进 MACHINES 卡或 Contact 前小节）
 - 待 Bin 的观感裁决：星座旁 ~139 颗氛围星云珠（保留=深空感 / 削减=更聚焦）；journey 标签在 <800×470 视口与卡片重叠（归入响应式专项）
-- [ ] ⑦ 收尾：LATTICE/WIRES 模式循环、配色精修（必做）、移动端/性能/a11y
+- [x] ⑦a 收尾第一轮（Bin 四点）：USTC 白徽修复（暗度→alpha；教训：白色素材必须合成深底校验）、珠子透明感提质（transmission .72）、配色外科调整（accent 加深 #8de9ec + 唯一暖金落点 = CV 按钮）、**四场公式统一为势能表达式** + dock 题注 "EVERY FIELD WRITES A POTENTIAL — MATTER FOLLOWS"
+- [ ] ⑦b 收尾余项：移动端/响应式（journey 标签重叠等）、性能验收、hero-prototype.html/formations-pcb.js/旧 Bootstrap 清理、machines-preview.html 处置、favicon、合并 main 上线；（可选池：LATTICE/WIRES hero 模式循环、双 JAKIE logo 裁决、星座旁氛围星云裁决）
 - [ ] 合并 main 上线，旧 Bootstrap 清理
