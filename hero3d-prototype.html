@@ -19,9 +19,10 @@
   canvas#c3d { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 
   /* The story is scroll HEIGHT only — every visible element is fixed, so nothing but the
-     swarm moves. Panes are empty spacers; the cards inside them are position:fixed. */
+     swarm moves. Panes are empty spacers; the cards inside them are position:fixed.
+     Vertical scroll = MAJOR sections only. Content inside a section switches horizontally. */
   .pane  { height: 100vh; }
-  .outro { height: 60vh; }
+  .outro { height: 50vh; }
 
   .nav {
     position: fixed; top: 0; left: 0; right: 0; height: 64px; z-index: 3;
@@ -66,9 +67,11 @@
     margin-top: 26px; letter-spacing: .08em; opacity: .75;
   }
 
-  /* Lower-left, so the formation keeps the centre of the frame to itself. */
+  /* Lower-left, so the formation keeps the centre of the frame to itself.
+     All four stack in the same spot now — one is .active at a time, the rest crossfade out. */
   .field-card {
-    position: fixed; left: clamp(20px, 6vw, 80px); bottom: 14vh; z-index: 2;
+    /* 110px floor: below ~586px tall, 14vh would sit the card on top of the dock */
+    position: fixed; left: clamp(20px, 6vw, 80px); bottom: max(14vh, 110px); z-index: 2;
     max-width: 30em; pointer-events: none; user-select: none;
     opacity: 0; transform: translateY(14px);
     transition: opacity .6s ease, transform .6s ease;
@@ -84,8 +87,14 @@
   }
   .fc-title {
     font-size: clamp(22px, 2.2vw, 26px); font-weight: 300; color: var(--text);
-    margin: 13px 0 15px; letter-spacing: -.005em;
+    margin: 13px 0 14px; letter-spacing: -.005em;
   }
+  /* the centrepiece: the one equation the work turns on, same voice as the hero panel */
+  .fc-eq {
+    font-family: Georgia, 'Times New Roman', serif; font-style: italic;
+    font-size: 19px; line-height: 1.7; color: var(--text); margin-bottom: 16px;
+  }
+  .fc-eq .v-term { color: var(--accent); }
   .fc-body { font-size: 15px; line-height: 1.65; color: var(--text-mid); }
   .fc-facts {
     font-family: var(--mono); font-size: 11px; letter-spacing: .05em;
@@ -99,13 +108,76 @@
     border: 1px solid var(--hair); border-radius: 2px; padding: 3px 7px;
     font-size: 9.5px; letter-spacing: .16em; color: var(--text-dim);
   }
-  @media (max-width: 760px) { .field-card { bottom: 9vh; max-width: none; right: 20px; } }
+  @media (max-width: 760px) { .field-card { bottom: 15vh; max-width: none; right: 20px; } }
+
+  /* ---------------------------------------------------------------- field dock
+     The horizontal wayfinder. Bottom-centre, between the formula panel (bottom-left)
+     and the kT slider (bottom-right). Only visible inside the fields section. */
+  .dock {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 3;
+    display: flex; gap: 10px;
+    opacity: 0; pointer-events: none; transition: opacity .3s ease;
+  }
+  .dock.on { opacity: 1; pointer-events: auto; }
+  .dock button {
+    appearance: none; background: none; cursor: pointer;
+    border: 1px solid var(--hair); border-radius: 3px; padding: 10px 16px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: .18em; line-height: 1.4;
+    color: var(--text-dim); text-align: center;
+    transition: color .3s ease, border-color .3s ease;
+  }
+  .dock button b { display: block; font-weight: 400; opacity: .5; margin-bottom: 5px; }
+  .dock button:hover { color: var(--text); }
+  .dock button.on { border-color: rgba(155,239,240,.45); color: var(--text); }
+  .dock button.on b { opacity: .75; }
+
+  /* ---------------------------------------------------------------- time machine
+     The vertical wayfinder. One tick per major section; the current one is widest and
+     brightest, the rest recede. Sub-ticks mirror the dock while inside the fields section. */
+  .tl {
+    position: fixed; right: 26px; top: 50%; transform: translateY(-50%); z-index: 3;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 20px;
+    font-family: var(--mono);
+  }
+  .tl-sec  { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+  .tl-main { display: flex; align-items: center; gap: 14px; }
+  .tl-label {
+    font-size: 10px; letter-spacing: .3em; text-transform: uppercase;
+    color: var(--text-dim); white-space: nowrap;
+    opacity: 0; transition: opacity .4s ease;
+  }
+  .tl-sec.on .tl-label { opacity: .85; }
+  .tl-tick, .tl-sub {
+    appearance: none; background: none; border: 0; padding: 5px 0; cursor: pointer;
+    display: block; transform-origin: right center;
+    transition: transform .4s ease, opacity .4s ease;
+  }
+  .tl-tick { width: 18px; }
+  .tl-sub  { width: 10px; opacity: .3; }
+  .tl-tick::before, .tl-sub::before {
+    content: ''; display: block; height: 1px; background: var(--text);
+    transition: background-color .4s ease;
+  }
+  .tl-tick:hover, .tl-sub:hover { opacity: 1; }
+  .tl-subs {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+    opacity: 0; pointer-events: none; transition: opacity .4s ease;
+  }
+  .tl-sec.on .tl-subs { opacity: 1; pointer-events: auto; }
+  .tl-sub.on { opacity: 1; transform: scaleX(1.5); }
+  .tl-sub.on::before { background: var(--accent); }
+  @media (max-width: 760px) { .tl { display: none; } }
 
   .physics-panel {
     position: fixed; left: clamp(20px, 4vw, 44px); bottom: 20px; z-index: 2;
     pointer-events: none; user-select: none;
     opacity: 0; animation: fadein 1.6s ease 2.8s forwards;
+    transition: opacity .5s ease;
   }
+  /* the panel is ~420px wide from the left edge — the centred dock reaches into it on any
+     viewport under ~1300px. In the fields section the card's own .fc-eq is the equation
+     on screen, so the hero's caption steps aside (same idiom as .hero-copy.inactive). */
+  .physics-panel.inactive { opacity: 0 !important; }
   .eq {
     font-family: Georgia, 'Times New Roman', serif; font-style: italic;
     color: var(--text-dim); font-size: 13px; line-height: 1.75; margin-bottom: 7px;
@@ -141,7 +213,7 @@
 <header class="nav">
   <a class="mark" href="#">BIN LIAN</a>
   <nav>
-    <a href="#f1" id="nav-research">RESEARCH</a>
+    <a href="#fields" id="nav-research">RESEARCH</a>
     <a href="#">MACHINES</a>
     <a href="image/file/Bin_s_Resume.pdf">CV</a>
   </nav>
@@ -155,51 +227,55 @@
   </div>
 </section>
 
-<section class="pane" id="f1">
-  <article class="field-card">
+<!-- ONE vertical pane. Its four fields switch horizontally (dock / arrows / trackpad).
+     data-n + data-name feed the dock and the timeline sub-ticks; data-gen names the
+     formations.js generator. Adding a field = adding a card here. Nothing else. -->
+<section class="pane" id="fields">
+  <article class="field-card" data-n="01" data-name="LIGHT" data-gen="focus">
     <p class="fc-kicker">FIELD 01 — LIGHT</p>
     <h2 class="fc-title">Light</h2>
+    <p class="fc-eq">I<sub>SERS</sub> ∝ <span class="v-term">|E(ω<sub>L</sub>)|²·|E(ω<sub>S</sub>)|²</span></p>
     <p class="fc-body">A silicon-nanowire optoelectric scheme gathers trace biomolecules at the
       laser focus while reading their Raman signature — enrichment and detection in one spot.</p>
     <p class="fc-facts">150× enhancement at −0.8 V · adenine detected at 0.6 fM</p>
-    <p class="fc-pub"><span class="chip">PREPRINT</span>Optoelectric Raman Nanosensors — Research Square, first author</p>
+    <p class="fc-pub"><span class="chip">PREPRINT</span>Optoelectric Raman nanosensors</p>
   </article>
-</section>
 
-<section class="pane" id="f2">
-  <article class="field-card">
+  <article class="field-card" data-n="02" data-name="HEAT" data-gen="lattice">
     <p class="fc-kicker">FIELD 02 — HEAT</p>
     <h2 class="fc-title">Heat</h2>
+    <p class="fc-eq">V(r) ∝ e<sup>−<span class="v-term">κ(T)</span>·r</sup> / r</p>
     <p class="fc-body">Water temperature programs how PS microspheres de-cluster and order on
       charged silicon. The control knob is the electric double layer — not the water itself.</p>
     <p class="fc-facts">Clark–Evans R 1.10 → 1.65 · ψ₆ ↑ · MD (TIP4P/2005) + Brownian-dynamics closure</p>
     <p class="fc-pub"><span class="chip">ONGOING</span>Temperature-regulated colloidal assembly</p>
   </article>
-</section>
 
-<section class="pane" id="f3">
-  <article class="field-card">
+  <article class="field-card" data-n="03" data-name="ELECTRIC" data-gen="wires">
     <p class="fc-kicker">FIELD 03 — ELECTRIC</p>
     <h2 class="fc-title">Electric fields</h2>
+    <p class="fc-eq">F<sub>DEP</sub> = 2πε<sub>m</sub>R³ Re[K(ω)] <span class="v-term">∇|E|²</span></p>
     <p class="fc-body">AC electric fields steer light-stimulated micromotor swarms with spatial,
       temporal and mode control — and assemble matter massively in parallel.</p>
-    <p class="fc-facts">micromotor swarms · microbubble nano-assembly</p>
-    <p class="fc-pub"><span class="chip">PUBLISHED</span>Science Advances 2023 · Nature Communications 2025</p>
+    <p class="fc-facts">micromotor swarms · massively parallel nano-assembly</p>
+    <p class="fc-pub"><span class="chip">PUBLISHED</span>AC-field micromotor control</p>
   </article>
-</section>
 
-<section class="pane" id="f4">
-  <article class="field-card">
+  <article class="field-card" data-n="04" data-name="SOLVATION" data-gen="network">
     <p class="fc-kicker">FIELD 04 — SOLVATION</p>
     <h2 class="fc-title">Solvation</h2>
+    <p class="fc-eq">ΔF/k<sub>B</sub>T = φ lnφ + (1−φ)ln(1−φ) + <span class="v-term">χ</span> φ(1−φ)</p>
     <p class="fc-body">Solvent exchange programs phase separation, turning brittle gels robust
       and stretchable.</p>
     <p class="fc-facts">phase separation × solvation engineering</p>
-    <p class="fc-pub"><span class="chip">PREPRINT</span>ChemRxiv, 2025</p>
+    <p class="fc-pub"><span class="chip">PREPRINT</span>Solvation-engineered tough gels</p>
   </article>
 </section>
 
 <div class="outro"></div>
+
+<div class="dock"></div>
+<div class="tl"></div>
 
 <div class="physics-panel">
   <div class="eq">
@@ -222,7 +298,7 @@
 function fallback(why) {
   document.getElementById('c3d').style.display = 'none';
   document.body.style.overflow = 'hidden';   // the scroll story is the swarm; without it there is nothing to scroll
-  for (const el of document.querySelectorAll('.hero-copy, .physics-panel, .hud, .pane, .outro')) el.style.display = 'none';
+  for (const el of document.querySelectorAll('.hero-copy, .physics-panel, .hud, .pane, .outro, .dock, .tl')) el.style.display = 'none';
   const d = document.createElement('div');
   d.className = 'fallback-note';
   d.innerHTML = '3D hero unavailable in this browser' +
@@ -241,27 +317,85 @@ try {
   const kt = document.getElementById('kt'), ktv = document.getElementById('ktv');
   kt.addEventListener('input', () => { PHY.setKT(+kt.value); ktv.textContent = (+kt.value).toFixed(1); });
 
-  // ---------------------------------------------------------------- the scroll story
-  // One swarm, five formations. Scroll only picks the formation; the transition is
-  // PHY.retarget()'s release → flight → re-ramp, never a tween of the scroll position.
-  const GEN = [null, F.focus, F.lattice, F.wires, F.network];   // 0 = the word
+  // ---------------------------------------------------------------- navigation
+  // Two axes. VERTICAL scroll picks the major section (vSec); HORIZONTAL input picks
+  // the content inside it (fieldIdx). Either one only ever chooses a formation —
+  // the transition is PHY.retarget()'s release → flight → re-ramp, never a tween.
+  //
+  // Extension: a new major section = one entry in SECTIONS + one <section class="pane">.
+  // A new field = one more .field-card (dock + sub-ticks are built from the cards).
+  const GEN = { focus: F.focus, lattice: F.lattice, wires: F.wires, network: F.network };
   const cards = [...document.querySelectorAll('.field-card')];
+  const FSEC = 1;                                    // the section the fields live in
+  const SECTIONS = [
+    { label: '00 — HOME',          subs: 0 },
+    { label: '01 — FIELD CONTROL', subs: cards.length },
+  ];
+  const LAST = SECTIONS.length - 1;
   const heroCopy = document.querySelector('.hero-copy');
-  const ptsFor = i => (i === 0 ? null : GEN[i](innerWidth, innerHeight));
+  const pes = document.querySelector('.physics-panel');
+  const dock = document.querySelector('.dock');
+  const tl = document.querySelector('.tl');
+  const clamp = (v, hi) => Math.max(0, Math.min(hi, v | 0));
 
-  // sec starts at 0 because the page boots into the word: re-targeting it here would cut
-  // the gas → ramp intro short.
-  let s = scrollY, sec = 0;
+  dock.innerHTML = cards.map((c, k) =>
+    `<button data-k="${k}"><b>${c.dataset.n}</b>${c.dataset.name}</button>`).join('');
+  tl.innerHTML = SECTIONS.map((s, k) => `<div class="tl-sec" data-k="${k}">
+      <div class="tl-main"><span class="tl-label">${s.label}</span>
+        <button class="tl-tick" aria-label="${s.label}"></button></div>
+      ${s.subs ? `<div class="tl-subs">${cards.map((c, j) =>
+        `<button class="tl-sub" data-j="${j}" aria-label="${c.dataset.name}"></button>`).join('')}</div>` : ''}
+    </div>`).join('');
+  const dockBtns = [...dock.children];
+  const tlSecs = [...tl.children];
+  const tlSubs = [...tl.querySelectorAll('.tl-sub')];
+
+  // vSec starts at 0 because the page boots into the word: re-targeting it here would cut
+  // the gas → ramp intro short. render() only touches the DOM, never PHY.
+  let vSec = 0, fieldIdx = 0;
+  let s = scrollY;
   let qaSec = null;   // QA override: pin a section without scrolling (hidden-tab captures composite fixed layers wrongly at scrollY != 0)
-  const secAt = () => Math.max(0, Math.min(4, Math.round(s / innerHeight)));
+  const secAt = () => clamp(Math.round(s / innerHeight), LAST);
+  const ptsFor = () => (vSec === FSEC ? GEN[cards[fieldIdx].dataset.gen](innerWidth, innerHeight) : null);
+
+  function render() {
+    cards.forEach((c, k) => c.classList.toggle('active', vSec === FSEC && k === fieldIdx));
+    heroCopy.classList.toggle('inactive', vSec !== 0);
+    pes.classList.toggle('inactive', vSec !== 0);
+    dock.classList.toggle('on', vSec === FSEC);
+    dockBtns.forEach((b, k) => b.classList.toggle('on', k === fieldIdx));
+    tlSubs.forEach((b, j) => b.classList.toggle('on', j === fieldIdx));
+    // the fan: ticks recede with distance from where you are.
+    tlSecs.forEach((el, k) => {
+      const d = Math.abs(k - vSec), t = el.querySelector('.tl-tick');
+      el.classList.toggle('on', k === vSec);
+      t.style.transform = `scaleX(${Math.max(.45, 1.9 - .55 * d)})`;   // 18px base -> 34px current
+      t.style.opacity = Math.max(.16, 1 - .5 * d);
+    });
+  }
 
   function setSection(i) {
-    if (i === sec) return;
-    sec = i;
-    PHY.retarget(ptsFor(i));
-    cards.forEach((c, k) => c.classList.toggle('active', k === i - 1));
-    heroCopy.classList.toggle('inactive', i >= 1);
+    if (i === vSec) return;
+    vSec = i;
+    PHY.retarget(ptsFor());
+    render();
   }
+
+  function setField(j) {
+    j = clamp(j, cards.length - 1);
+    if (j === fieldIdx) return;
+    fieldIdx = j;
+    if (vSec === FSEC) PHY.retarget(ptsFor());
+    render();
+  }
+
+  // under qaSec the window must stay at scrollY 0, so jump the state instead of scrolling
+  function goSec(i) {
+    if (qaSec !== null) { qaSec = clamp(i, LAST); setSection(qaSec); return; }
+    scrollTo({ top: i * innerHeight, behavior: 'smooth' });
+  }
+
+  render();
 
   // scroll is read here, not in a scroll listener: the lerp is what gives the section
   // switch its hysteresis, so a flick past a boundary does not fire two retargets.
@@ -272,9 +406,42 @@ try {
     setSection(secAt());
   })();
 
+  dock.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (b) setField(+b.dataset.k);
+  });
+
+  tl.addEventListener('click', e => {
+    const sec = e.target.closest('.tl-sec');
+    if (!sec) return;
+    const sub = e.target.closest('.tl-sub');
+    if (sub) { goSec(+sec.dataset.k); setField(+sub.dataset.j); }
+    else if (e.target.closest('.tl-tick')) goSec(+sec.dataset.k);
+  });
+
+  addEventListener('keydown', e => {
+    if (vSec !== FSEC) return;
+    if (e.key === 'ArrowRight') setField(fieldIdx + 1);
+    else if (e.key === 'ArrowLeft') setField(fieldIdx - 1);
+  });
+
+  // horizontal trackpad. passive: vertical wheel is never intercepted, it just scrolls.
+  let dx = 0, wheelT = 0, switchT = 0;
+  addEventListener('wheel', e => {
+    const now = performance.now();
+    if (now - wheelT > 200) dx = 0;          // new gesture, not a slow drift
+    wheelT = now;
+    if (vSec !== FSEC || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) { dx = 0; return; }
+    dx += e.deltaX;
+    if (Math.abs(dx) > 120 && now - switchT > 500) {
+      setField(fieldIdx + Math.sign(dx));
+      dx = 0; switchT = now;
+    }
+  }, { passive: true });
+
   document.getElementById('nav-research').addEventListener('click', e => {
     e.preventDefault();
-    scrollTo({ top: innerHeight, behavior: 'smooth' });
+    goSec(FSEC);
   });
 
   // formations are generated against a viewport, so they must be re-generated for the new
@@ -282,18 +449,19 @@ try {
   let rt = 0;
   addEventListener('resize', () => {
     clearTimeout(rt);
-    rt = setTimeout(() => { if (sec > 0) PHY.retarget(ptsFor(sec)); }, 260);
+    rt = setTimeout(() => { if (vSec === FSEC) PHY.retarget(ptsFor()); }, 260);
   });
 
   // QA hook: rAF is suspended in hidden tabs, so tick() never runs there — advance() pulls
-  // the scroll position in itself, and section(i) jumps straight to a chapter.
-  //   __hero.section(2); __hero.advance(4)
+  // the scroll position in itself, section(i) jumps to a major section and field(j) to a field.
+  //   __hero.section(1); __hero.field(2); __hero.advance(4)
   const adv = __hero.advance;
   __hero.advance = t => { if (qaSec === null) { s = scrollY; setSection(secAt()); } adv(t); };
   __hero.section = i => {
-    qaSec = Math.max(0, Math.min(4, i | 0));
+    qaSec = clamp(i, LAST);
     setSection(qaSec);            // no scrollTo: state only, window stays at 0 for clean captures
   };
+  __hero.field = j => setField(j);
 } catch (e) {
   fallback(e);
 }
