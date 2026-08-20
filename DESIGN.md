@@ -68,6 +68,9 @@ hero3d-prototype.html Step1 交付物
 - 小项待 Bin：板面双 JAKIE logo（照片印刷版 + 线稿 sprite 版）是否只留照片版
 - 旧 js/formations-pcb.js（珠子拼板方案）已退役，整站清理时删除
 - [ ] ③ Closing the Loop（+小游戏后置）
-- [ ] ④ Journey ⑤ Toolbox ⑥ Awards+Teaching+Footer（可合并）
+- [x] ③b+③c 大整合：主页 MACHINES 段（310vh，morph + SCARA 对接终幕）、`02 — MACHINES` 刻度、板身偏移修重叠、皮带轮过曝修复（NormalBlending）、机械臂立正（资产 v2 垂直翻转）
+- [x] ④ Journey 星座 + Contact 尾声：EXIT 段闭环回织物语言、四星团星座（标签由共享节点表投影，不会漂移）、Contact 释放成星尘 + 极简联系块；修复 journey/contact 深链接启动的 λ 所有权死锁 → **全站叙事骨架完成**（名字→四场→电路→机器→来路→联系，滚动全程正反可逆）
+- [ ] ⑤ Toolbox ⑥ Awards+Teaching 排布评估（规格类内容并进 MACHINES 卡或 Contact 前小节）
+- 待 Bin 的观感裁决：星座旁 ~139 颗氛围星云珠（保留=深空感 / 削减=更聚焦）；journey 标签在 <800×470 视口与卡片重叠（归入响应式专项）
 - [ ] ⑦ 收尾：LATTICE/WIRES 模式循环、配色精修（必做）、移动端/性能/a11y
 - [ ] 合并 main 上线，旧 Bootstrap 清理
