@@ -10,13 +10,18 @@
     --text: #f4f7f7;
     --text-dim: #8b9498;
     --accent: #9beff0;          /* the V-term and the slider. Nothing else. */
+    --text-mid: #b9c2c5;
     --hair: rgba(255,255,255,0.10);
     --mono: ui-monospace, "SF Mono", Menlo, monospace;
   }
   * { margin: 0; box-sizing: border-box; }
-  html, body { height: 100%; }
-  body { background: var(--bg); overflow: hidden; font-family: system-ui, sans-serif; }
+  body { background: var(--bg); font-family: system-ui, sans-serif; }
   canvas#c3d { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* The story is scroll HEIGHT only — every visible element is fixed, so nothing but the
+     swarm moves. Panes are empty spacers; the cards inside them are position:fixed. */
+  .pane  { height: 100vh; }
+  .outro { height: 60vh; }
 
   .nav {
     position: fixed; top: 0; left: 0; right: 0; height: 64px; z-index: 3;
@@ -43,7 +48,10 @@
     /* soft dark scrim so the copy stays legible over the bright fabric lines */
     padding: 26px 36px; white-space: nowrap;
     background: radial-gradient(ellipse 100% 100% at center, rgba(0,0,4,0.78) 30%, rgba(0,0,4,0) 75%);
+    transition: opacity .5s ease;
   }
+  /* !important so it beats the intro animation's forwards fill without cancelling it */
+  .hero-copy.inactive { opacity: 0 !important; }
   @keyframes fadein { to { opacity: 1; } }
   .id-line {
     font-family: var(--mono); font-size: 11px; letter-spacing: .22em;
@@ -57,6 +65,41 @@
     font-family: var(--mono); font-size: 11px; color: var(--text-dim);
     margin-top: 26px; letter-spacing: .08em; opacity: .75;
   }
+
+  /* Lower-left, so the formation keeps the centre of the frame to itself. */
+  .field-card {
+    position: fixed; left: clamp(20px, 6vw, 80px); bottom: 14vh; z-index: 2;
+    max-width: 30em; pointer-events: none; user-select: none;
+    opacity: 0; transform: translateY(14px);
+    transition: opacity .6s ease, transform .6s ease;
+    /* same trick as .hero-copy: a soft dark scrim so the copy wins against the fabric lines */
+    padding: 22px 26px;
+    background: radial-gradient(ellipse 115% 115% at 35% 50%, rgba(0,0,4,0.82) 40%, rgba(0,0,4,0) 78%);
+  }
+  .field-card.active { opacity: 1; transform: translateY(0); }
+  .field-card a { pointer-events: auto; color: var(--text-dim); }
+  .fc-kicker {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .22em;
+    color: var(--text-dim); opacity: .65;
+  }
+  .fc-title {
+    font-size: clamp(22px, 2.2vw, 26px); font-weight: 300; color: var(--text);
+    margin: 13px 0 15px; letter-spacing: -.005em;
+  }
+  .fc-body { font-size: 15px; line-height: 1.65; color: var(--text-mid); }
+  .fc-facts {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .05em;
+    color: var(--accent); opacity: .8; margin-top: 18px; line-height: 1.7;
+  }
+  .fc-pub {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .05em; color: var(--text-dim);
+    margin-top: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .chip {
+    border: 1px solid var(--hair); border-radius: 2px; padding: 3px 7px;
+    font-size: 9.5px; letter-spacing: .16em; color: var(--text-dim);
+  }
+  @media (max-width: 760px) { .field-card { bottom: 9vh; max-width: none; right: 20px; } }
 
   .physics-panel {
     position: fixed; left: clamp(20px, 4vw, 44px); bottom: 20px; z-index: 2;
@@ -98,17 +141,65 @@
 <header class="nav">
   <a class="mark" href="#">BIN LIAN</a>
   <nav>
-    <a href="#">RESEARCH</a>
+    <a href="#f1" id="nav-research">RESEARCH</a>
     <a href="#">MACHINES</a>
     <a href="image/file/Bin_s_Resume.pdf">CV</a>
   </nav>
 </header>
 
-<div class="hero-copy">
-  <p class="id-line">PhD Researcher &nbsp;·&nbsp; Texas Materials Institute &nbsp;·&nbsp; UT Austin</p>
-  <p class="tagline">Commanding matter with fields — and building machines that learn to do it.</p>
-  <p class="hint">each bead curves the sheet · your cursor is an optical trap · click to pulse-melt</p>
-</div>
+<section class="pane" id="hero">
+  <div class="hero-copy">
+    <p class="id-line">PhD Researcher &nbsp;·&nbsp; Texas Materials Institute &nbsp;·&nbsp; UT Austin</p>
+    <p class="tagline">Commanding matter with fields — and building machines that learn to do it.</p>
+    <p class="hint">each bead curves the sheet · your cursor is an optical trap · click to pulse-melt</p>
+  </div>
+</section>
+
+<section class="pane" id="f1">
+  <article class="field-card">
+    <p class="fc-kicker">FIELD 01 — LIGHT</p>
+    <h2 class="fc-title">Light</h2>
+    <p class="fc-body">A silicon-nanowire optoelectric scheme gathers trace biomolecules at the
+      laser focus while reading their Raman signature — enrichment and detection in one spot.</p>
+    <p class="fc-facts">150× enhancement at −0.8 V · adenine detected at 0.6 fM</p>
+    <p class="fc-pub"><span class="chip">PREPRINT</span>Optoelectric Raman Nanosensors — Research Square, first author</p>
+  </article>
+</section>
+
+<section class="pane" id="f2">
+  <article class="field-card">
+    <p class="fc-kicker">FIELD 02 — HEAT</p>
+    <h2 class="fc-title">Heat</h2>
+    <p class="fc-body">Water temperature programs how PS microspheres de-cluster and order on
+      charged silicon. The control knob is the electric double layer — not the water itself.</p>
+    <p class="fc-facts">Clark–Evans R 1.10 → 1.65 · ψ₆ ↑ · MD (TIP4P/2005) + Brownian-dynamics closure</p>
+    <p class="fc-pub"><span class="chip">ONGOING</span>Temperature-regulated colloidal assembly</p>
+  </article>
+</section>
+
+<section class="pane" id="f3">
+  <article class="field-card">
+    <p class="fc-kicker">FIELD 03 — ELECTRIC</p>
+    <h2 class="fc-title">Electric fields</h2>
+    <p class="fc-body">AC electric fields steer light-stimulated micromotor swarms with spatial,
+      temporal and mode control — and assemble matter massively in parallel.</p>
+    <p class="fc-facts">micromotor swarms · microbubble nano-assembly</p>
+    <p class="fc-pub"><span class="chip">PUBLISHED</span>Science Advances 2023 · Nature Communications 2025</p>
+  </article>
+</section>
+
+<section class="pane" id="f4">
+  <article class="field-card">
+    <p class="fc-kicker">FIELD 04 — SOLVATION</p>
+    <h2 class="fc-title">Solvation</h2>
+    <p class="fc-body">Solvent exchange programs phase separation, turning brittle gels robust
+      and stretchable.</p>
+    <p class="fc-facts">phase separation × solvation engineering</p>
+    <p class="fc-pub"><span class="chip">PREPRINT</span>ChemRxiv, 2025</p>
+  </article>
+</section>
+
+<div class="outro"></div>
 
 <div class="physics-panel">
   <div class="eq">
@@ -130,7 +221,8 @@
 <script type="module">
 function fallback(why) {
   document.getElementById('c3d').style.display = 'none';
-  for (const el of document.querySelectorAll('.hero-copy, .physics-panel, .hud')) el.style.display = 'none';
+  document.body.style.overflow = 'hidden';   // the scroll story is the swarm; without it there is nothing to scroll
+  for (const el of document.querySelectorAll('.hero-copy, .physics-panel, .hud, .pane, .outro')) el.style.display = 'none';
   const d = document.createElement('div');
   d.className = 'fallback-note';
   d.innerHTML = '3D hero unavailable in this browser' +
@@ -142,10 +234,66 @@ function fallback(why) {
 // dynamic import so a missing importmap / module-resolution failure lands here too,
 // not just a runtime throw out of createHero (no WebGL2 -> same note)
 try {
-  const [scene3d, phy] = await Promise.all([import('./js/scene3d.js'), import('./js/physics.js')]);
+  const [scene3d, PHY, F] = await Promise.all([
+    import('./js/scene3d.js'), import('./js/physics.js'), import('./js/formations.js'),
+  ]);
   scene3d.createHero(document.getElementById('c3d'));
   const kt = document.getElementById('kt'), ktv = document.getElementById('ktv');
-  kt.addEventListener('input', () => { phy.setKT(+kt.value); ktv.textContent = (+kt.value).toFixed(1); });
+  kt.addEventListener('input', () => { PHY.setKT(+kt.value); ktv.textContent = (+kt.value).toFixed(1); });
+
+  // ---------------------------------------------------------------- the scroll story
+  // One swarm, five formations. Scroll only picks the formation; the transition is
+  // PHY.retarget()'s release → flight → re-ramp, never a tween of the scroll position.
+  const GEN = [null, F.focus, F.lattice, F.wires, F.network];   // 0 = the word
+  const cards = [...document.querySelectorAll('.field-card')];
+  const heroCopy = document.querySelector('.hero-copy');
+  const ptsFor = i => (i === 0 ? null : GEN[i](innerWidth, innerHeight));
+
+  // sec starts at 0 because the page boots into the word: re-targeting it here would cut
+  // the gas → ramp intro short.
+  let s = scrollY, sec = 0;
+  let qaSec = null;   // QA override: pin a section without scrolling (hidden-tab captures composite fixed layers wrongly at scrollY != 0)
+  const secAt = () => Math.max(0, Math.min(4, Math.round(s / innerHeight)));
+
+  function setSection(i) {
+    if (i === sec) return;
+    sec = i;
+    PHY.retarget(ptsFor(i));
+    cards.forEach((c, k) => c.classList.toggle('active', k === i - 1));
+    heroCopy.classList.toggle('inactive', i >= 1);
+  }
+
+  // scroll is read here, not in a scroll listener: the lerp is what gives the section
+  // switch its hysteresis, so a flick past a boundary does not fire two retargets.
+  (function tick() {
+    requestAnimationFrame(tick);
+    if (qaSec !== null) return;
+    s += (scrollY - s) * 0.08;
+    setSection(secAt());
+  })();
+
+  document.getElementById('nav-research').addEventListener('click', e => {
+    e.preventDefault();
+    scrollTo({ top: innerHeight, behavior: 'smooth' });
+  });
+
+  // formations are generated against a viewport, so they must be re-generated for the new
+  // one. 260 ms > scene3d's own 200 ms resize debounce, so PHY.resize() has already run.
+  let rt = 0;
+  addEventListener('resize', () => {
+    clearTimeout(rt);
+    rt = setTimeout(() => { if (sec > 0) PHY.retarget(ptsFor(sec)); }, 260);
+  });
+
+  // QA hook: rAF is suspended in hidden tabs, so tick() never runs there — advance() pulls
+  // the scroll position in itself, and section(i) jumps straight to a chapter.
+  //   __hero.section(2); __hero.advance(4)
+  const adv = __hero.advance;
+  __hero.advance = t => { if (qaSec === null) { s = scrollY; setSection(secAt()); } adv(t); };
+  __hero.section = i => {
+    qaSec = Math.max(0, Math.min(4, i | 0));
+    setSection(qaSec);            // no scrollTo: state only, window stays at 0 for clean captures
+  };
 } catch (e) {
   fallback(e);
 }

@@ -56,10 +56,11 @@ hero3d-prototype.html Step1 交付物
 - [x] Step 0：2D 原型（Langevin + 鼠标 −∇V + 熔化 + kT + 方程/2D→3D 势能面板）
 - [x] three.js vendor 落库
 - [x] **① Hero 3D 原型**：单一 55° 倾斜 GR 织物 + 珠子贴面 + 每珠酒窝 + λ 涌现动画 + 光镊（Bin 认可基础效果）
-- [x] ①b 光标激光束特效（落点辉光骑在阱底、点击脉冲爆闪与熔化共用 pulse 变量）——**Hero 章节暂收口**
+- [x] ①b 光标激光束特效 → **Bin 裁决：太过，暂撤**（代码留在 `LASER_ON=false` 后面 + git cc1af7e，回调三个 opacity 可减弱后复启）——**Hero 章节暂收口**
+- 决策：**默认 3D、2D 降级版（hero-prototype.html）到整站阶段直接删除**；无 WebGL 场景给静态提示即可
 - [ ] ①c 镜头视角/远近的沉浸式调优（后续打磨项，Bin 提出）
 - 流程注记：`node --check` 对带 ESM import 的 .js 会漏报语法错误——JS 验证必须实际加载页面（或 --input-type=module）
-- [ ] ② Fields of Control
+- [x] ② Fields of Control：5 屏滚动叙事上线——同一批珠子随章节重排（焦斑+衍射环 / 六角晶格 / 13 条链化线阵 / 凝胶渗流网络），转场 = retarget 的释放→飞行→re-ramp 纯物理链路（无热脉冲）；四张极简内容卡（PREPRINT/ONGOING/PUBLISHED 状态章）→ 待 Bin 实机滚动验收
 - [ ] ③ Closing the Loop（+小游戏后置）
 - [ ] ④ Journey ⑤ Toolbox ⑥ Awards+Teaching+Footer（可合并）
 - [ ] ⑦ 收尾：LATTICE/WIRES 模式循环、配色精修（必做）、移动端/性能/a11y
