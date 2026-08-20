@@ -1,0 +1,1 @@
+{"segments": 7299, "unit": "height=1", "src": "band24finger2.blend", "dock": {"min": [-0.0287, 0.2948, -0.7287], "max": [0.1129, 0.3369, -0.6476]}, "note": "Float32 xyz*2/seg, centered, y-up; dock = HS_WB-pcb bbox in same frame"}
