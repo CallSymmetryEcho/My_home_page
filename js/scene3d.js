@@ -272,6 +272,102 @@ export function createHero(canvas) {
     mesh.instanceMatrix.needsUpdate = true;
   }
 
+  // ------------------------------------------------------------ the laser (the cursor, made physical)
+  // The optical trap is an instrument, not a glow: a beam falls straight down out of the
+  // sky (world −Y, NOT the sheet normal — an external source reads as external) and where
+  // it lands the sheet dips and the beads gather. Click = melt = the laser fires a heating
+  // pulse, so the same `pulse` the physics heats with drives the flash.
+  const BEAM_W = 26;          // beam plane width [world]
+  const BEAM_LEN = 1.6;       // beam length [·H]
+  const GLOW_R = 70, CORE_R = 24;  // impact sprites [world]
+  const BEAM_LIFT = 4;        // n̂ offset off the sheet, so the sprites never z-fight
+  const PULSE_GAIN = 1.2;
+
+  // one texture, both crossed planes: hairline core across, fades to nothing at the top
+  function makeBeamTex() {
+    const w = 64, h = 256, cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const ctx = cv.getContext('2d'), img = ctx.createImageData(w, h), d = img.data;
+    for (let y = 0; y < h; y++) {
+      const v = y / (h - 1);                                 // 0 top (sky) -> 1 bottom (sheet)
+      const vp = Math.pow(v, 1.7) * (0.72 + 0.28 * v);       // out of nowhere, hottest at impact
+      for (let x = 0; x < w; x++) {
+        const u = Math.abs((x + 0.5) / w * 2 - 1);           // 0 centre -> 1 edge
+        const core = Math.exp(-((u / 0.08) ** 2));           // ~8% hairline
+        const halo = Math.exp(-((u / 0.42) ** 2)) * 0.42;
+        const t = core / (core + halo + 1e-6), k = (y * w + x) * 4;
+        d[k]     = 155 + (234 - 155) * t;                    // #9beff0 halo -> #eaffff core
+        d[k + 1] = 239 + (255 - 239) * t;
+        d[k + 2] = 240 + (255 - 240) * t;
+        d[k + 3] = Math.min(255, (core + halo) * vp * 255);
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+  function makeGlowTex() {
+    const s = 128, cv = document.createElement('canvas');
+    cv.width = cv.height = s;
+    const ctx = cv.getContext('2d');
+    const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, 'rgba(234,255,255,1)');
+    g.addColorStop(0.22, 'rgba(155,239,240,0.55)');
+    g.addColorStop(1, 'rgba(155,239,240,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, s, s);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  const beamTex = makeBeamTex(), glowTex = makeGlowTex();
+  const beamGeo = new THREE.PlaneGeometry(1, 1);   // unit plane, scaled in relayout (H changes)
+  const beamMat = new THREE.MeshBasicMaterial({
+    map: beamTex, transparent: true, opacity: 0, depthWrite: false,
+    blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  });
+  const glowMat = new THREE.SpriteMaterial({
+    map: glowTex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  const coreMat = glowMat.clone();
+  const beamA = new THREE.Mesh(beamGeo, beamMat);
+  const beamB = new THREE.Mesh(beamGeo, beamMat);
+  beamB.rotation.y = Math.PI / 2;                  // billboard-style cross about the beam axis
+  const glowSp = new THREE.Sprite(glowMat), coreSp = new THREE.Sprite(coreMat);
+  glowSp.scale.set(GLOW_R, GLOW_R, 1);
+  coreSp.scale.set(CORE_R, CORE_R, 1);
+  const laser = new THREE.Group();
+  laser.add(beamA, beamB, glowSp, coreSp);
+  laser.visible = false;                           // starts off; fades in on first pointer
+  scene.add(laser);
+
+  const lpos = new THREE.Vector3();
+  let lvis = 0, ltime = 0;
+  function updateLaser(dt) {
+    ltime += dt;
+    // per-frame rates (0.25 glide, 0.15 fade at 60 fps) made dt-exact, so one big
+    // advance(2) from the QA hook lands where two seconds of rAF frames would
+    const glide = 1 - Math.pow(0.75, dt * 60), fade = 1 - Math.pow(0.85, dt * 60);
+    const p = PHY.getPointer();
+    if (p) {
+      // same map as placeBeads, but riding the deforming well via heightAt()
+      const u = (p.x - W / 2) * PLANE_S, w = (H / 2 - p.y) * PLANE_S;
+      const n = heightAt(p.x, p.y) + BEAM_LIFT;
+      lpos.set(u, SHEET_Y * H + w * SINP + n * COSP, -w * COSP + n * SINP);
+      if (lvis < 0.01) laser.position.copy(lpos);   // don't sweep in from the last hit point
+      else laser.position.lerp(lpos, glide);
+    }
+    lvis += ((p ? 1 : 0) - lvis) * fade;
+    laser.visible = lvis > 0.003;
+    if (!laser.visible) return;
+    // idle flicker × pulse flash — PHY.getPulse() is the very heat the melt runs on
+    const k = lvis * (0.92 + 0.08 * Math.sin(ltime * 37)) * (1 + PULSE_GAIN * PHY.getPulse());
+    beamMat.opacity = Math.min(1, 0.55 * k);
+    glowMat.opacity = Math.min(1, 0.50 * k);
+    coreMat.opacity = Math.min(1, 0.85 * k);
+  }
+
   // ------------------------------------------------------------ post
   const composer = new EffectComposer(renderer);   // picks up the renderer's size + DPR
   // the canvas `antialias` flag does nothing once we render into composer targets, and
@@ -315,6 +411,10 @@ export function createHero(canvas) {
     camera.lookAt(look);
     ctr.set(0, SHEET_Y * H, 0);
     plane.setFromNormalAndCoplanarPoint(nrm, ctr);
+
+    // beam hangs from the sky down to the group origin (the impact point)
+    const bl = BEAM_LEN * H;
+    for (const m of [beamA, beamB]) { m.scale.set(BEAM_W, bl, 1); m.position.y = bl / 2; }
 
     key.position.set(0.5 * H, 1.0 * H, 1.4 * H);
     glint.position.set(0, 0.30 * H, 0.45 * H);
@@ -362,6 +462,15 @@ export function createHero(canvas) {
   }
 
   // ------------------------------------------------------------ loop
+  // every rendered frame goes through here — rAF, the QA hook and the reduced-motion
+  // still frame alike, so the laser can never be a rAF-only decoration
+  function drawFrame(dt) {
+    updateLaser(dt);
+    placeBeads(meshMain, idxMain);
+    placeBeads(meshTrac, idxTrac);
+    composer.render();
+  }
+
   let raf = 0, acc = 0, last = performance.now();
   function frame(now) {
     raf = requestAnimationFrame(frame);
@@ -375,9 +484,7 @@ export function createHero(canvas) {
     camera.lookAt(look);
 
     updateFabric();
-    placeBeads(meshMain, idxMain);
-    placeBeads(meshTrac, idxTrac);
-    composer.render();
+    drawFrame(dt);
 
     if (fpsEl) {
       frames++;
@@ -394,9 +501,7 @@ export function createHero(canvas) {
     advance(seconds) {
       const n = Math.max(1, Math.round(seconds / C.dt));
       for (let i = 0; i < n; i++) { PHY.step(C.dt); updateFabric(); }
-      placeBeads(meshMain, idxMain);
-      placeBeads(meshTrac, idxTrac);
-      composer.render();
+      drawFrame(n * C.dt);
     },
     setPointer: (x, y) => PHY.setPointer(x, y),
     clearPointer: () => PHY.clearPointer(),
@@ -409,9 +514,7 @@ export function createHero(canvas) {
     // no animation: fast-forward ~6 s so the name is already assembled, then one frame
     for (let i = 0; i < 360; i++) PHY.step(C.dt);
     for (let i = 0; i < 40; i++) updateFabric();   // let the eased sheet settle
-    placeBeads(meshMain, idxMain);
-    placeBeads(meshTrac, idxTrac);
-    composer.render();
+    drawFrame(C.dt);
   } else {
     raf = requestAnimationFrame(frame);
     addEventListener('pointermove', onMove);
@@ -430,8 +533,10 @@ export function createHero(canvas) {
       canvas.removeEventListener('click', onClick);
       if (fpsEl) fpsEl.remove();
       bloom.dispose(); outPass.dispose(); composer.dispose();
-      fabGeo.dispose(); beadGeo.dispose(); starGeo.dispose();
+      fabGeo.dispose(); beadGeo.dispose(); starGeo.dispose(); beamGeo.dispose();
       fabMat.dispose(); starMat.dispose(); glassMat.dispose(); tracMat.dispose();
+      beamMat.dispose(); glowMat.dispose(); coreMat.dispose();
+      beamTex.dispose(); glowTex.dispose();
       meshMain.dispose(); meshTrac.dispose();
       envRT.dispose(); scene.environment = null;
       renderer.dispose();

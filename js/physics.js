@@ -285,6 +285,9 @@ export function step(dt) {
 
 export function setPointer(x, y) { mx = x; my = y; }
 export function clearPointer() { mx = -1e9; my = -1e9; }
+// single source of truth for "is the trap on, and where" — the renderer aims its laser at it
+export function getPointer() { return mx > -1e8 ? { x: mx, y: my } : null; }
+export function getPulse() { return pulse; }
 
 export function melt() {
   if (mode !== 'text' && mode !== 'ramp') return;
