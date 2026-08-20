@@ -24,6 +24,48 @@ function randn() {
 }
 const jit = a => (Math.random() - 0.5) * 2 * a;
 
+// ---------------------------------------------------------------- JOURNEY
+// The path itself, as a constellation: four star-clusters on a rising diagonal, wired by
+// thin bead chains. The page reads the same table to pin its DOM labels, so the labels and
+// the stars can never drift apart: [name, x·W, y·H, relative brightness].
+export const JOURNEY_NODES = [
+  ['USTC', 0.22, 0.55, 1],
+  ['BERKELEY', 0.40, 0.46, 1],
+  ['BROWN', 0.58, 0.40, 1],
+  ['UT AUSTIN', 0.78, 0.30, 1.45],   // the current node, and the brightest
+];
+
+export function journey(W, H) {
+  const S = H / 900;                       // same viewport scaling as focus()
+  const CHAIN = 16 * S, CJIT = 2 * S;      // constellation lines: one bead every ~16 px
+  const nd = JOURNEY_NODES.map(([, fx, fy]) => [fx * W, fy * H]);
+  const pts = [];
+
+  // the chains have a fixed pitch, so they are laid first and the clusters take the rest of
+  // the budget. Endpoints are left to the clusters — a chain must not double up on a core.
+  for (let k = 1; k < nd.length; k++) {
+    const a = nd[k - 1], b = nd[k];
+    const n = Math.max(2, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / CHAIN));
+    for (let i = 1; i < n; i++) {
+      const t = i / n;
+      pts.push([a[0] + (b[0] - a[0]) * t + jit(CJIT), a[1] + (b[1] - a[1]) * t + jit(CJIT)]);
+    }
+  }
+
+  // gaussian cores. The brief's literal 55/80 beads fill barely half the budget and leave
+  // 40% of the swarm as ambient noise around the constellation, so — as everywhere else in
+  // this file — the budget sets the count and the brief's ratio (UT Austin 1.45×) sets the
+  // split. σ stays 14 / 18 px, which is what gives the clusters their density.
+  const wsum = JOURNEY_NODES.reduce((a, n) => a + n[3], 0);
+  const per = (TARGET - pts.length) / wsum;
+  const cl3 = v => (v < -3 ? -3 : v > 3 ? 3 : v);
+  JOURNEY_NODES.forEach(([, , , w], k) => {
+    const n = Math.round(per * w), sg = (w > 1 ? 18 : 14) * S;
+    for (let i = 0; i < n; i++) pts.push([nd[k][0] + cl3(randn()) * sg, nd[k][1] + cl3(randn()) * sg]);
+  });
+  return pts;
+}
+
 // ---------------------------------------------------------------- LIGHT
 // An optical focus: a dense gaussian core plus two diffraction rings.
 export function focus(W, H) {

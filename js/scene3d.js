@@ -219,6 +219,16 @@ export function createHero(canvas, opts = {}) {
     fabGeo.attributes.color.needsUpdate = true;
   }
 
+  // physics (x, y) -> CSS px inside the canvas. The sheet is tilted, the camera dollies and
+  // parallaxes, so anything in the DOM that has to sit ON a bead (the journey labels) must
+  // ask for the real projection — a viewport percentage lands next to the wrong star.
+  const pj3 = new Float32Array(3), pjv = new THREE.Vector3();
+  function project(x, y) {
+    sheetXYZ(x, y, heightAt(x, y) * 0.35 + BEAD_R, pj3, 0);   // same n̂ offset a bead rides at
+    pjv.set(pj3[0], pj3[1], pj3[2]).project(camera);
+    return [(pjv.x * 0.5 + 0.5) * W, (0.5 - pjv.y * 0.5) * H];
+  }
+
   // bilinear sample of the eased height field, so a bead sits IN its own dimple
   function heightAt(x, y) {
     const g = PHY.grid;
@@ -443,7 +453,7 @@ export function createHero(canvas, opts = {}) {
   }
 
   let board = null, boardBusy = false, boardFail = false;
-  let morphT = 0, held = false, dolly = 1, dollyM = 1;
+  let morphT = 0, held = false, dolly = 1, dollyM = 1, exitT = 0;
   const bC = new Float32Array(3);   // board centre in world (group-local) coords — the dock anchor
 
   const boardGrp = new THREE.Group();
@@ -702,10 +712,17 @@ export function createHero(canvas, opts = {}) {
 
   function updateMorph() {
     const t = morphT;
-    // stage 1 — hand λ to the morph and keep it down for as long as the morph is running
-    const want = t > 0.002;
+    // stage 1 — hand λ to the morph and keep it down for as long as the morph is running…
+    // …but NOT once the exit has run to the end: there the page takes λ back for the
+    // constellation while morphT is still pinned at 1. Without the `exitT < 1` half, a page
+    // that BOOTS inside the journey (a reload, a deep link) would have the morph steal λ on
+    // its very first setMorph and never give it back — the beads would sit as dead gas.
+    const want = t > 0.002 && exitT < 1;
     if (want !== held) { held = want; PHY.holdRelease(want); }
-    beadScale = 1 - 0.55 * stg(t, 0.05, 0.5);     // released beads recede to a dim gas
+    // the EXIT stage (see setExit) undoes the morph on top of it: `inv` is 1 while the
+    // machine story is on screen and 0 once it has been handed back to the fabric.
+    const inv = 1 - ss(exitT);
+    beadScale = 1 - 0.55 * stg(t, 0.05, 0.5) * inv;   // released beads recede to a dim gas
     dollyM = 1 + (DOLLY - 1) * stg(t, 0.85, 1);
     updateArm();                                  // the arm stage extends this frame's camera + board transform
 
@@ -714,10 +731,12 @@ export function createHero(canvas, opts = {}) {
     // stage 2 — the fabric hands its lines over to the copper
     const s2 = stg(t, 0.25, 0.6), s3 = stg(t, 0.6, 0.85), s4 = stg(t, 0.8, 0.97);
     const dim = 1 - (1 - LINE_DIM) * s4;          // lines step back once the photo lands
-    fabMat.opacity = 1 - s2;
+    // …and the exit hands them BACK. A multiplier cannot lift an opacity the morph drove to
+    // 0, so the fabric's own term is a lerp toward 1; every board layer is multiplicative.
+    fabMat.opacity = 1 - s2 * inv;
     fabric.visible = fabMat.opacity > 0.004;
 
-    traceMat.opacity = stg(t, 0.25, 0.36) * dim;
+    traceMat.opacity = stg(t, 0.25, 0.36) * dim * inv;
     boardGrp.visible = traceMat.opacity > 0.002;
     // only the 150-vertex-pair rewrite is skipped when the layer is invisible; every
     // opacity below still tracks t, so scrubbing back leaves no flag lying about its state
@@ -736,17 +755,17 @@ export function createHero(canvas, opts = {}) {
     // stage 3 — the board becomes an object
     // stage 4 — the blueprint lands on the real thing: the photo fades in under the copper,
     // the stand-in mask fades out from under it, and the lines step back to LINE_DIM.
-    faceMat.opacity = 0.92 * s3 * (1 - s4);
-    outMat.opacity = 0.50 * s3 * dim;
-    padMat.opacity = 0.45 * s3 * dim;
-    photoMat.opacity = PHOTO_MAX * s4;
-    for (const sp of silkGrp.children) sp.material.opacity = (sp.userData.box ? 0.20 : 0.42) * s3;
-    const on = s3 > 0.004;
+    faceMat.opacity = 0.92 * s3 * (1 - s4) * inv;
+    outMat.opacity = 0.50 * s3 * dim * inv;
+    padMat.opacity = 0.45 * s3 * dim * inv;
+    photoMat.opacity = PHOTO_MAX * s4 * inv;
+    for (const sp of silkGrp.children) sp.material.opacity = (sp.userData.box ? 0.20 : 0.42) * s3 * inv;
+    const on = s3 * inv > 0.004;
     outline.visible = padLines.visible = silkGrp.visible = on;
     face.visible = faceMat.opacity > 0.004;
     photoMesh.visible = !!board.photo && photoMat.opacity > 0.004;
 
-    pulseOn = t >= 0.6;
+    pulseOn = t >= 0.6 && exitT <= 0.5;           // past half the exit the beads are beads again
   }
 
   // t ∈ [0, 1], scrub-safe in both directions. The board JSON is fetched lazily on the
@@ -817,10 +836,12 @@ export function createHero(canvas, opts = {}) {
   }
 
   function updateArm() {
-    const t = armT, a = ss(t);
-    dolly = dollyM + (DOLLY2 - DOLLY) * a;
-    look.x = ARM_X * W * LOOK_DRIFT * a;
-    armMat.opacity = ARM_OP * stg(t, 0, 0.5);
+    const t = armT, a = ss(t), inv = 1 - ss(exitT);
+    // the exit walks the whole camera move back to 1×: the constellation has to read on the
+    // sheet at hero framing, and the DOM labels project against this same camera.
+    dolly = 1 + (dollyM + (DOLLY2 - DOLLY) * a - 1) * inv;
+    look.x = ARM_X * W * LOOK_DRIFT * a * inv;
+    armMat.opacity = ARM_OP * stg(t, 0, 0.5) * inv;
     if (arm) arm.visible = armMat.opacity > 0.004;
     // the board shrinks and glides until its centre sits on the dock point
     const u = stg(t, 0.15, 0.85), sc = 1 + (BOARD_S2 - 1) * u, x0 = BOARD_DX * W;
@@ -837,6 +858,17 @@ export function createHero(canvas, opts = {}) {
     armT = t > 0 ? (t < 1 ? t : 1) : 0;
     if (armT > 0 && !arm && !armBusy && !armFail) loadArm();
     updateArm();
+  }
+
+  // ------------------------------------------------------------ the exit (chapter ③ → ④)
+  // The machine story closes and the beads come home. setExit(t3) does not undo setMorph /
+  // setArm — it runs ON TOP of them (morphT and armT stay pinned at 1 underneath), fading the
+  // board, the arm and the signal pulses out, growing the beads back to full size, handing the
+  // fabric its opacity back and dollying the camera home. Pure function of t3, so scrubbing
+  // back up re-lights the finale exactly as it was.
+  function setExit(t) {
+    exitT = t > 0 ? (t < 1 ? t : 1) : 0;
+    updateMorph();               // -> updateArm(): every opacity and the camera are re-derived
   }
 
   // ------------------------------------------------------------ post
@@ -999,9 +1031,11 @@ export function createHero(canvas, opts = {}) {
     lambda: () => PHY.getLambda(),
     setMorph,
     setArm,
+    setExit,
+    project,
     // everything the morph can get wrong, in one readable object
     boardStats() {
-      if (!board) return { board: null, failed: boardFail, pending: boardBusy, t: morphT };
+      if (!board) return { board: null, failed: boardFail, pending: boardBusy, t: morphT, t3: exitT };
       let mn = Infinity, mx = 0, len = 0, bad = 0;
       for (let k = 0; k < NT; k++) {
         const o = k * 4;
@@ -1021,7 +1055,7 @@ export function createHero(canvas, opts = {}) {
         photoOpacity: +photoMat.opacity.toFixed(3), photoPx: photoPx.map(v => +v.toFixed(1)),
         pulseOn, pulses: pulsePos.length / 2, beadScale: +beadScale.toFixed(3),
         dolly: +dolly.toFixed(3), lambda: +PHY.getLambda().toFixed(4), mode: PHY.getMode(),
-        t2: armT, armLoaded: !!arm, armFailed: armFail,
+        t2: armT, armLoaded: !!arm, armFailed: armFail, t3: exitT,
         armOpacity: +armMat.opacity.toFixed(3), armSegs: armGeo ? armGeo.attributes.position.count / 2 : 0,
         boardScale: +boardGrp.scale.x.toFixed(3),
         boardPos: [boardGrp.position.x, boardGrp.position.y, boardGrp.position.z].map(v => Math.round(v)),
@@ -1045,6 +1079,8 @@ export function createHero(canvas, opts = {}) {
   return {
     setMorph,
     setArm,
+    setExit,
+    project,
     dispose() {
       cancelAnimationFrame(raf);
       clearTimeout(rt);
