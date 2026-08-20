@@ -9,7 +9,8 @@
     --bg: #000004;
     --text: #f4f7f7;
     --text-dim: #8b9498;
-    --accent: #9beff0;          /* the V-term and the slider. Nothing else. */
+    --accent: #8de9ec;          /* the V-term and the slider. Nothing else. */
+    --accent-warm: #ffd9a0;     /* the board's gold pads + the amber tracers. CV button only. */
     --text-mid: #b9c2c5;
     --hair: rgba(255,255,255,0.10);
     --mono: ui-monospace, "SF Mono", Menlo, monospace;
@@ -145,15 +146,16 @@
     font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
     color: var(--text-dim); margin: -4px 0 15px;
   }
-  /* the one call to action in the whole chapter, so it gets the accent border and nothing else */
+  /* the one call to action in the whole chapter, so it gets a border and nothing else — and it
+     is the ONE warm thing on the site, echoing the board's gold pads and the amber tracers */
   .field-card a.jn-cv {
     display: inline-block; margin-top: 22px; padding: 11px 20px;
-    border: 1px solid rgba(155,239,240,.45); border-radius: 3px;
+    border: 1px solid rgba(255,217,160,.55); border-radius: 3px;
     font-family: var(--mono); font-size: 10px; letter-spacing: .2em;
-    color: var(--accent); text-decoration: none;
+    color: var(--accent-warm); text-decoration: none;
     transition: background-color .3s ease, color .3s ease, border-color .3s ease;
   }
-  .field-card a.jn-cv:hover { background: rgba(155,239,240,.12); border-color: rgba(155,239,240,.8); color: var(--text); }
+  .field-card a.jn-cv:hover { background: rgba(255,217,160,.12); border-color: rgba(255,217,160,.9); color: #fff1da; }
   @media (max-width: 760px) { .jn-card { left: 20px; right: 20px; max-width: none; } }
 
   /* ---------------------------------------------------------------- chapter 03 — journey
@@ -221,8 +223,18 @@
   }
   .dock button b { display: block; font-weight: 400; opacity: .5; margin-bottom: 5px; }
   .dock button:hover { color: var(--text); }
-  .dock button.on { border-color: rgba(155,239,240,.45); color: var(--text); }
+  .dock button.on { border-color: rgba(141,233,236,.45); color: var(--text); }
   .dock button.on b { opacity: .75; }
+  /* the unifier: one line naming what all four field equations now share. Gated off the FIELDS
+     dock's own .on via a sibling selector, so it cannot drift out of sync — and kept OUT of the
+     dock's flex box so dock layout is untouched. */
+  .dock-cap {
+    position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%); z-index: 3;
+    font-family: var(--mono); font-size: 10px; letter-spacing: .18em;
+    color: var(--text-dim); white-space: nowrap;
+    opacity: 0; pointer-events: none; user-select: none; transition: opacity .3s ease;
+  }
+  #fdock.on ~ .dock-cap { opacity: .7; }
 
   /* ---------------------------------------------------------------- time machine
      The vertical wayfinder. One tick per major section; the current one is widest and
@@ -327,7 +339,7 @@
   <article class="field-card" data-n="01" data-name="LIGHT" data-gen="focus">
     <p class="fc-kicker">FIELD 01 — LIGHT</p>
     <h2 class="fc-title">Light</h2>
-    <p class="fc-eq">I<sub>SERS</sub> ∝ <span class="v-term">|E(ω<sub>L</sub>)|²·|E(ω<sub>S</sub>)|²</span></p>
+    <p class="fc-eq">V<sub>opt</sub>(r) = −½ α·<span class="v-term">|E(r)|²</span></p>
     <p class="fc-body">A silicon-nanowire optoelectric scheme gathers trace biomolecules at the
       laser focus while reading their Raman signature — enrichment and detection in one spot.</p>
     <p class="fc-facts">150× enhancement at −0.8 V · adenine detected at 0.6 fM</p>
@@ -337,7 +349,7 @@
   <article class="field-card" data-n="02" data-name="HEAT" data-gen="lattice">
     <p class="fc-kicker">FIELD 02 — HEAT</p>
     <h2 class="fc-title">Heat</h2>
-    <p class="fc-eq">V(r) ∝ e<sup>−<span class="v-term">κ(T)</span>·r</sup> / r</p>
+    <p class="fc-eq">V<sub>edl</sub>(r) ∝ e<sup>−<span class="v-term">κ(T)</span>·r</sup> / r</p>
     <p class="fc-body">Water temperature programs how PS microspheres de-cluster and order on
       charged silicon. The control knob is the electric double layer — not the water itself.</p>
     <p class="fc-facts">Clark–Evans R 1.10 → 1.65 · ψ₆ ↑ · MD (TIP4P/2005) + Brownian-dynamics closure</p>
@@ -347,7 +359,7 @@
   <article class="field-card" data-n="03" data-name="ELECTRIC" data-gen="wires">
     <p class="fc-kicker">FIELD 03 — ELECTRIC</p>
     <h2 class="fc-title">Electric fields</h2>
-    <p class="fc-eq">F<sub>DEP</sub> = 2πε<sub>m</sub>R³ Re[K(ω)] <span class="v-term">∇|E|²</span></p>
+    <p class="fc-eq">V<sub>dep</sub>(r) = −π ε<sub>m</sub>R³·<span class="v-term">Re[K(ω)]</span>·|E(r)|²</p>
     <p class="fc-body">AC electric fields steer light-stimulated micromotor swarms with spatial,
       temporal and mode control — and assemble matter massively in parallel.</p>
     <p class="fc-facts">micromotor swarms · massively parallel nano-assembly</p>
@@ -357,7 +369,7 @@
   <article class="field-card" data-n="04" data-name="SOLVATION" data-gen="network">
     <p class="fc-kicker">FIELD 04 — SOLVATION</p>
     <h2 class="fc-title">Solvation</h2>
-    <p class="fc-eq">ΔF/k<sub>B</sub>T = φ lnφ + (1−φ)ln(1−φ) + <span class="v-term">χ</span> φ(1−φ)</p>
+    <p class="fc-eq">F(φ)/k<sub>B</sub>T = φ lnφ + (1−φ)ln(1−φ) + <span class="v-term">χ</span>·φ(1−φ)</p>
     <p class="fc-body">Solvent exchange programs phase separation, turning brittle gels robust
       and stretchable.</p>
     <p class="fc-facts">phase separation × solvation engineering</p>
@@ -460,6 +472,7 @@
 
 <div class="dock" id="fdock"></div>
 <div class="dock" id="pdock"></div>
+<div class="dock-cap">EVERY FIELD WRITES A POTENTIAL — MATTER FOLLOWS</div>
 <div class="tl"></div>
 
 <div class="physics-panel">
@@ -483,7 +496,7 @@
 function fallback(why) {
   document.getElementById('c3d').style.display = 'none';
   document.body.style.overflow = 'hidden';   // the scroll story is the swarm; without it there is nothing to scroll
-  for (const el of document.querySelectorAll('.hero-copy, .physics-panel, .hud, .pane, .outro, .dock, .tl')) el.style.display = 'none';
+  for (const el of document.querySelectorAll('.hero-copy, .physics-panel, .hud, .pane, .outro, .dock, .dock-cap, .tl')) el.style.display = 'none';
   const d = document.createElement('div');
   d.className = 'fallback-note';
   d.innerHTML = '3D hero unavailable in this browser' +

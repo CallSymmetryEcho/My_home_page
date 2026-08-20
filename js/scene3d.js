@@ -81,7 +81,7 @@ export function createHero(canvas, opts = {}) {
 
   // no ambient: deep space. The glass reads through env reflection + these two.
   const key = new THREE.DirectionalLight(0xffffff, 2.0);
-  const glint = new THREE.PointLight(0x9beff0, 1, 1, 2);   // intensity/range scale with H
+  const glint = new THREE.PointLight(0x8de9ec, 1, 1, 2);   // intensity/range scale with H
   scene.add(key, glint);
 
   // ------------------------------------------------------------ starfield
@@ -249,10 +249,11 @@ export function createHero(canvas, opts = {}) {
   for (let i = 0; i < N; i++) scl[i] = 0.85 + Math.random() * 0.30;
 
   const beadGeo = new THREE.SphereGeometry(BEAD_R, 24, 16);
-  // less transmission (on black it transmits black), more clearcoat + env: sparkling
-  // droplets that catch the bloom, not matte marbles
+  // transmission is capped (on black it transmits black) and carried by clearcoat + env:
+  // sparkling droplets that catch the bloom, not matte marbles. The thinner wall at 0.72
+  // reads as glass rather than resin — push transmission much past this and they go invisible.
   const glassMat = new THREE.MeshPhysicalMaterial({
-    metalness: 0, roughness: 0.05, transmission: 0.55, thickness: 3,
+    metalness: 0, roughness: 0.04, transmission: 0.72, thickness: 2.5,
     clearcoat: 1.0, clearcoatRoughness: 0.05,
     ior: 1.45, color: 0xf2feff, envMapIntensity: 3.2,
   });
@@ -1190,7 +1191,7 @@ export function createHero(canvas, opts = {}) {
   if (location.search.includes('fps')) {
     fpsEl = document.createElement('div');
     fpsEl.style.cssText = 'position:fixed;top:74px;right:10px;z-index:9;pointer-events:none;' +
-      'font:11px ui-monospace,Menlo,monospace;color:#9beff0;opacity:.7';
+      'font:11px ui-monospace,Menlo,monospace;color:#8de9ec;opacity:.7';
     document.body.appendChild(fpsEl);
   }
 
