@@ -75,5 +75,6 @@ hero3d-prototype.html Step1 交付物
 - [ ] ⑤ Toolbox ⑥ Awards+Teaching 排布评估（规格类内容并进 MACHINES 卡或 Contact 前小节）
 - 待 Bin 的观感裁决：星座旁 ~139 颗氛围星云珠（保留=深空感 / 削减=更聚焦）；journey 标签在 <800×470 视口与卡片重叠（归入响应式专项）
 - [x] ⑦a 收尾第一轮（Bin 四点）：USTC 白徽修复（暗度→alpha；教训：白色素材必须合成深底校验）、珠子透明感提质（transmission .72）、配色外科调整（accent 加深 #8de9ec + 唯一暖金落点 = CV 按钮）、**四场公式统一为势能表达式** + dock 题注 "EVERY FIELD WRITES A POTENTIAL — MATTER FOLLOWS"
+- [x] ⑦a+ MACHINES 三拍重构（Bin：别堆在一起）：电路→**手环**（板对接进 blend 里 HS_WB-pcb 板位，手+环边线幽灵）→**机械臂**（手环就位后登场，信号弧线连指令链）→**算法**（全场景幽灵化，PID→π_θ + 阶跃响应 SVG）；单卡拆四卡（HARDWARE/SENSE/ACT/LEARN），MACHINES 刻度下挂 BOARD/BAND/ARM/ALGO sub-tick；资产 band-edges.bin（手 decimate 全线框 + 机械件，7299 段）
 - [ ] ⑦b 收尾余项：移动端/响应式（journey 标签重叠等）、性能验收、hero-prototype.html/formations-pcb.js/旧 Bootstrap 清理、machines-preview.html 处置、favicon、合并 main 上线；（可选池：LATTICE/WIRES hero 模式循环、双 JAKIE logo 裁决、星座旁氛围星云裁决）
 - [ ] 合并 main 上线，旧 Bootstrap 清理
