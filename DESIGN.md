@@ -62,7 +62,10 @@ hero3d-prototype.html Step1 交付物
 - 流程注记：`node --check` 对带 ESM import 的 .js 会漏报语法错误——JS 验证必须实际加载页面（或 --input-type=module）
 - [x] ② Fields of Control 编队与卡片上线（焦斑+衍射环 / 六角晶格 / 13 条链化线阵 / 凝胶渗流网络；retarget 纯物理转场）
 - [ ] ②b **信息架构修正（Bin，进行中）**：纵轴只切大板块、Fields 四场改横向切换（dock 点击 / 方向键 / 触控板横滑）；卡片改「主导公式优先」——I_SERS∝|E|⁴ / κ(T) 屏蔽库仑 / F_DEP∝∇|E|² / Flory–Huggins χ，期刊与引用缩写全部弱化（只留状态章 + 短题名）；导览双组件：底部悬浮四格 field dock + 右缘 **Time Machine 式时间线**（扇形缩放刻度 + 庄严 mono 标签标注当前位置）
-- [ ] ③ From Physics to Machines（并行进行中）：PCB 走线闭环编队（Manhattan 走线 + 45° 折角 + 过孔环 + 元件焊盘）、规格书卡片（PID → π_θ 策略的公式弧线）、standalone 预览页先行
+- [x] ③a Fabric→PCB morph（预览页 machines-preview.html，滚动擦洗）：场释放 → 网格线错峰重路由成 **HS_WB 真实板** 150 段走线（js/data/board-hswb.json，KiCad 解析）→ 板框/焊盘/丝印/JAKIE logo 材质化 → 相机拉出；50 珠信号脉冲沿线流动，其余暗退星尘；单色 logo 进预览页导航 → 待 Bin 验收
+- [ ] ③b 整合进主页面（SECTIONS 加 MACHINES + 时间线刻度；已知问题：短视口下内容卡与板身左缘重叠，整合时板身 x 偏移或卡片让位）
+- [ ] ③c 拉出阶段设备嵌入：**待 Bin 提供整臂装配导出**（ROBOT_ARM 只有散件；SolidWorks 装配导 STL/GLB 即可）；边线幽灵渲染
+- 旧 js/formations-pcb.js（珠子拼板方案）已退役，整站清理时删除
 - [ ] ③ Closing the Loop（+小游戏后置）
 - [ ] ④ Journey ⑤ Toolbox ⑥ Awards+Teaching+Footer（可合并）
 - [ ] ⑦ 收尾：LATTICE/WIRES 模式循环、配色精修（必做）、移动端/性能/a11y
