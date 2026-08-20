@@ -17,6 +17,7 @@
     --tl-gutter: 210px;         /* the right column the time machine reserves for its labels */
   }
   * { margin: 0; box-sizing: border-box; }
+  [hidden] { display: none !important; }   /* beats the display rules below on fail-soft paths */
   body { background: var(--bg); font-family: system-ui, sans-serif; }
   canvas#c3d { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 
@@ -26,16 +27,19 @@
   .pane  { height: 100vh; }
   /* MACHINES and JOURNEY are the two sections that scrub instead of switching: their height
      IS their scrub range.
-     Panes: hero 1 + fields 1 + machines 4.6 + journey 2.2 + contact 0.6 = 9.4H of document,
-     so the last pixel of scroll is s = 8.4H — exactly where the finale ends. Boundaries [·H]:
+     Panes: hero 1 + fields 1 + machines 4.6 + journey 2.2 + writing 1.1 + contact 0.6
+            = 10.5H of document, so the last pixel of scroll is s = 9.5H — exactly where the
+     finale ends. Boundaries [·H]:
        hero [0,1) · fields [1,2) · machines [2,5.9)
          — morph [2,3.8] · band [3.8,4.4] · arm [4.4,5.0] · algo [5.0,5.5] · exit [5.5,5.9]
        journey [5.9,8.1) — overview [5.9,6.9], zoom [6.9,7.5], zoomed browsing [7.5,8.1)
-       contact [8.1,8.4]
-     (the contact pane shrank from 1.2H to 0.6H to absorb the machines pane's 460vh: the one
-      invariant is sum(panes) − 1 = C0 + CFIN, i.e. the page ends when the finale does.) */
+       writing [8.1,9.2)  — no new formation: the journey's released stardust holds the stage
+       contact [9.2,9.5]
+     (the one invariant is sum(panes) − 1 = C0 + CFIN, i.e. the page ends when the finale
+      does — adding WRITING pushed C0 from 8.1 to 9.2 and the document from 9.4H to 10.5H.) */
   .pane-tall { height: 460vh; }
   .pane-journey { height: 220vh; }
+  .pane-writing { height: 110vh; }
   .pane-contact { height: 60vh; }
 
   .nav {
@@ -124,6 +128,27 @@
     border: 1px solid var(--hair); border-radius: 2px; padding: 3px 7px;
     font-size: 9.5px; letter-spacing: .16em; color: var(--text-dim);
   }
+  /* ---------------------------------------------------------------- the works registry
+     js/data/works.json, rendered under the card that owns each key. One row per paper or
+     project: title, its status chip, and an arrow only where there is something to open.
+     Same mono voice as .fc-pub, one step dimmer — the card's prose stays the loud thing. */
+  .fc-works { margin-top: 12px; display: flex; flex-direction: column; gap: 4px; }
+  .fc-works > b {
+    font-family: var(--mono); font-size: 9.5px; font-weight: 400; letter-spacing: .2em;
+    color: var(--text-dim); opacity: .5; margin-bottom: 2px;
+  }
+  .fw-row {
+    display: flex; align-items: baseline; gap: 8px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .03em; line-height: 1.5;
+    color: var(--text-dim); opacity: .82;
+  }
+  .fw-row .fw-t { flex: 1 1 auto; }
+  .fw-row .chip { flex: 0 0 auto; white-space: nowrap; }
+  .field-card .fw-row a {
+    flex: 0 0 auto; color: var(--accent); text-decoration: none; opacity: .7;
+    transition: opacity .25s ease;
+  }
+  .field-card .fw-row a:hover { opacity: 1; }
   /* the chapter card: same voice, one line wider — its fact list is the longest on the site */
   .mc { max-width: 32em; }
   .mc .fc-facts { line-height: 1.9; }
@@ -186,16 +211,64 @@
      One label per star cluster. Each is pinned to its cluster's PROJECTED screen position
      (scene3d.project, driven every frame), because the sheet is tilted and the camera moves:
      a viewport percentage would sit next to the wrong star. */
-  .jr-node {
+  /* …and the machine beat's two, on the far ends of the signal fan-out. Same idiom, same
+     projection driver — the only difference is that these ride WORLD anchors (hero.anchors),
+     because neither the arm's column nor the nano node was ever on the sheet. */
+  .jr-node, .mc-node {
     position: fixed; left: 0; top: 0; z-index: 2;
     font-family: var(--mono); font-size: 11px; letter-spacing: .2em;
     color: var(--text-dim); white-space: nowrap;
     opacity: 0; transition: opacity .6s ease; pointer-events: none; user-select: none;
     text-shadow: 0 0 10px rgba(0,0,4,.95), 0 0 4px rgba(0,0,4,.95);
   }
-  .jr-node.active { opacity: .85; }
+  .jr-node.active, .mc-node.active { opacity: .85; }
+  .mc-node .chip { display: inline-block; margin-left: 9px; vertical-align: 1px; }
 
-  /* ---------------------------------------------------------------- chapter 04 — contact
+  /* ---------------------------------------------------------------- chapter 04 — writing
+     The blog, on the page. No new formation behind it: the journey's released stardust and the
+     starfield hold the stage, so this chapter costs the scene nothing at all. The block sits
+     centre-right against --tl-gutter (the star parks left of centre, same as the journey's
+     detail card) and the four posts come out of js/data/blog.json. */
+  .wr {
+    position: fixed; right: var(--tl-gutter); top: 50%; z-index: 2;
+    transform: translateY(-50%) translateY(14px);
+    width: min(46em, 52vw); user-select: none;
+    opacity: 0; pointer-events: none;
+    transition: opacity .7s ease, transform .7s ease;
+    padding: 24px 28px;
+    background: radial-gradient(ellipse 118% 118% at 55% 50%, rgba(0,0,4,0.88) 46%, rgba(0,0,4,0) 82%);
+  }
+  .wr.active { opacity: 1; transform: translateY(-50%); }
+  .wr-intro { font-size: 15px; line-height: 1.65; color: var(--text-mid); margin: 13px 0 22px; }
+  /* 2×2 at 1440 AND at 1024 (the gutter leaves ~530px there, i.e. ~250px a card); one column
+     only once the two would go narrower than a title line. */
+  .wr-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+  .wr-card {
+    display: block; text-decoration: none; pointer-events: auto;
+    border: 1px solid var(--hair); border-radius: 3px; padding: 13px 15px;
+    transition: border-color .3s ease, background-color .3s ease;
+  }
+  .wr-card:hover { border-color: rgba(141,233,236,.45); background: rgba(141,233,236,.05); }
+  .wr-t { font-size: 14px; font-weight: 300; line-height: 1.4; color: var(--text); }
+  .wr-d {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .14em;
+    color: var(--text-dim); opacity: .7; margin-top: 7px;
+  }
+  .wr-x {
+    font-size: 12px; line-height: 1.55; color: var(--text-mid); opacity: .7; margin-top: 9px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .wr-more {
+    display: inline-block; margin-top: 20px; pointer-events: auto;
+    font-family: var(--mono); font-size: 10px; letter-spacing: .2em;
+    color: var(--accent); text-decoration: none; opacity: .8;
+    transition: opacity .25s ease;
+  }
+  .wr-more:hover { opacity: 1; }
+  @media (max-width: 900px) { .wr-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 760px) { .wr { right: 20px; left: 20px; width: auto; } }
+
+  /* ---------------------------------------------------------------- chapter 05 — contact
      The outro, and the one MONUMENTAL block on the page: everything else has stepped aside,
      the camera has pulled far back, and a single orbit ring turns around this. Generous
      vertical rhythm, everything centred, nothing competing. */
@@ -360,44 +433,40 @@
      data-n + data-name feed the dock and the timeline sub-ticks; data-gen names the
      formations.js generator. Adding a field = adding a card here. Nothing else. -->
 <section class="pane" id="fields">
-  <article class="field-card" data-n="01" data-name="LIGHT" data-gen="focus">
+  <article class="field-card" data-n="01" data-name="LIGHT" data-gen="focus" data-works="light">
     <p class="fc-kicker">FIELD 01 — LIGHT</p>
     <h2 class="fc-title">Light</h2>
-    <p class="fc-eq">V<sub>opt</sub>(r) = −½ α·<span class="v-term">|E(r)|²</span></p>
-    <p class="fc-body">A silicon-nanowire optoelectric scheme gathers trace biomolecules at the
-      laser focus while reading their Raman signature — enrichment and detection in one spot.</p>
+    <p class="fc-eq">V(r) = −½ α|E<sub>ω</sub>(r)|² + q·<span class="v-term">φ<sub>pc</sub>(r)</span></p>
+    <p class="fc-body">Light traps twice — the optical gradient itself, and the locally confined
+      field it writes into the photo-activated semiconductor.</p>
     <p class="fc-facts">150× enhancement at −0.8 V · adenine detected at 0.6 fM</p>
-    <p class="fc-pub"><span class="chip">PREPRINT</span>Optoelectric Raman nanosensors</p>
   </article>
 
-  <article class="field-card" data-n="02" data-name="HEAT" data-gen="lattice">
+  <article class="field-card" data-n="02" data-name="HEAT" data-gen="lattice" data-works="heat">
     <p class="fc-kicker">FIELD 02 — HEAT</p>
     <h2 class="fc-title">Heat</h2>
     <p class="fc-eq">V<sub>edl</sub>(r) ∝ e<sup>−<span class="v-term">κ(T)</span>·r</sup> / r</p>
     <p class="fc-body">Water temperature programs how PS microspheres de-cluster and order on
       charged silicon. The control knob is the electric double layer — not the water itself.</p>
     <p class="fc-facts">Clark–Evans R 1.10 → 1.65 · ψ₆ ↑ · MD (TIP4P/2005) + Brownian-dynamics closure</p>
-    <p class="fc-pub"><span class="chip">ONGOING</span>Temperature-regulated colloidal assembly</p>
   </article>
 
-  <article class="field-card" data-n="03" data-name="ELECTRIC" data-gen="wires">
+  <article class="field-card" data-n="03" data-name="ELECTRIC" data-gen="wires" data-works="electric">
     <p class="fc-kicker">FIELD 03 — ELECTRIC</p>
     <h2 class="fc-title">Electric fields</h2>
     <p class="fc-eq">V<sub>dep</sub>(r) = −π ε<sub>m</sub>R³·<span class="v-term">Re[K(ω)]</span>·|E(r)|²</p>
     <p class="fc-body">AC electric fields steer light-stimulated micromotor swarms with spatial,
       temporal and mode control — and assemble matter massively in parallel.</p>
     <p class="fc-facts">micromotor swarms · massively parallel nano-assembly</p>
-    <p class="fc-pub"><span class="chip">PUBLISHED</span>AC-field micromotor control</p>
   </article>
 
-  <article class="field-card" data-n="04" data-name="SOLVATION" data-gen="network">
+  <article class="field-card" data-n="04" data-name="SOLVATION" data-gen="network" data-works="solvation">
     <p class="fc-kicker">FIELD 04 — SOLVATION</p>
     <h2 class="fc-title">Solvation</h2>
     <p class="fc-eq">F(φ)/k<sub>B</sub>T = φ lnφ + (1−φ)ln(1−φ) + <span class="v-term">χ</span>·φ(1−φ)</p>
     <p class="fc-body">Solvent exchange programs phase separation, turning brittle gels robust
       and stretchable.</p>
     <p class="fc-facts">phase separation × solvation engineering</p>
-    <p class="fc-pub"><span class="chip">PREPRINT</span>Solvation-engineered tough gels</p>
   </article>
 </section>
 
@@ -427,7 +496,7 @@
     <p class="fc-pub"><span class="chip">SENSE</span></p>
   </article>
 
-  <article class="field-card" data-n="03" data-name="ARM">
+  <article class="field-card" data-n="03" data-name="ARM" data-works="projects" data-works-label="PROJECTS">
     <p class="fc-kicker">MACHINES — ACT</p>
     <h2 class="fc-title">An arm that answers</h2>
     <p class="fc-body">The band's intent stream drives a self-built SCARA arm.</p>
@@ -435,9 +504,9 @@
     <p class="fc-pub"><span class="chip">ACT</span></p>
   </article>
 
-  <article class="field-card mc" data-n="04" data-name="ALGO">
-    <p class="fc-kicker">MACHINES — LEARN</p>
-    <h2 class="fc-title">A controller that learns</h2>
+  <article class="field-card mc" data-n="04" data-name="CONTROL" data-works="machines">
+    <p class="fc-kicker">MACHINES — CONTROL</p>
+    <h2 class="fc-title">Control, end to end</h2>
     <p class="fc-eq">u(t) = K<sub>p</sub>e + K<sub>i</sub>∫e·dt + K<sub>d</sub>ė &nbsp;→&nbsp;
       <span class="v-term">u<sub>t</sub> = π<sub>θ</sub>(s<sub>t</sub>)</span></p>
     <!-- the same step, answered twice. Curves are y(t) of a second-order system: ζ=0.30 (the
@@ -453,11 +522,16 @@
       <text class="sr-lab d" x="89" y="12" text-anchor="middle">PID</text>
       <text class="sr-lab a" x="92" y="50" text-anchor="middle">π<tspan dy="2.5" font-size="7">θ</tspan></text>
     </svg>
-    <p class="fc-body">Hand-tuned gains become learned policies — PINN/RL tuning the controller,
-      agents running the lab.</p>
+    <p class="fc-body">Control is the through-line — strategies for commanding matter at the
+      nanoscale, and the machines that carry them out. Hand-tuned gains become learned policies.</p>
     <p class="fc-facts">PID → RL · autonomous wet-lab loop · CV + LLM + RL</p>
-    <p class="fc-pub"><span class="chip">LEARN</span></p>
+    <p class="fc-pub"><span class="chip">CONTROL</span></p>
   </article>
+
+  <!-- the two far ends of the ACT beat's signal fan-out. Positioned every frame against
+       hero.anchors() -> hero.projectWorld(), the same way .jr-node rides its own star. -->
+  <span class="mc-node" id="mc-arm">SCARA PLATFORM<span class="chip">IN PREP</span></span>
+  <span class="mc-node" id="mc-nano">E-TWEEZERS · MULTISCALE<span class="chip">IN PREP</span></span>
 </section>
 
 <!-- Chapter 03. The machine story fades out (tExit) and the fabric hands the stage to FOUR
@@ -516,7 +590,20 @@
   </article>
 </section>
 
-<!-- Chapter 04. The outro: the camera pulls far back, the stars shrink to points drifting
+<!-- Chapter 04. The blog, on the page. The stage does NOT change: the journey leaves its
+     stardust released and its starfield turning, and t4 is already pinned at 1 through here,
+     so this chapter adds no formation and needs nothing from scene3d. The four posts come out
+     of js/data/blog.json; if that file never lands, the kicker and the line are still true. -->
+<section class="pane pane-writing" id="writing">
+  <div class="wr" id="writing-block">
+    <p class="fc-kicker">CHAPTER 04 — WRITING</p>
+    <p class="wr-intro">Notes from the bench — systems, statistics, and the occasional rescue.</p>
+    <div class="wr-grid" id="wr-grid"></div>
+    <a class="wr-more" id="wr-more" target="_blank" rel="noopener" hidden>VISIT THE BLOG ↗</a>
+  </div>
+</section>
+
+<!-- Chapter 05. The outro: the camera pulls far back, the stars shrink to points drifting
      up-right, one orbit ring turns, and the page ends on the name. -->
 <section class="pane pane-contact" id="contact">
   <div class="outro" id="contact-block">
@@ -596,34 +683,43 @@ try {
   const cards = [...document.querySelectorAll('#fields .field-card')];
   const mCards = [...document.querySelectorAll('#machines .field-card')];
   const jnCards = [...document.querySelectorAll('.jn-card')];
-  const FSEC = 1, MSEC = 2, JSEC = 3, CSEC = 4;      // fields · machines · journey · contact
+  // fields · machines · journey · writing · contact
+  const FSEC = 1, MSEC = 2, JSEC = 3, WSEC = 4, CSEC = 5;
   // `at` = where the timeline tick lands you [·H]; `subAt` = where a SUB-tick lands you, for
   // the sections whose sub-content only exists at a particular depth of the scrub; `subsAt` =
   // one depth PER sub-tick, for MACHINES, whose four sub-ticks are four beats of one scrub
   // rather than four things you switch between. MACHINES' main tick lands on the materialized
   // board, JOURNEY's on the fully-formed overview (and its sub-ticks inside the zoomed
-  // browsing hold); CONTACT is simply the bottom of the page.
+  // browsing hold); WRITING lands mid-pane, where its cards have faded in; CONTACT is simply
+  // the bottom of the page.
   const SECTIONS = [
     { label: '00 — HOME',          subs: [],      at: 0 },
     { label: '01 — FIELD CONTROL', subs: cards,   at: 1 },
     { label: '02 — MACHINES',      subs: mCards,  at: 3.85, subsAt: [3.85, 4.4, 5.0, 5.5] },
     { label: '03 — JOURNEY',       subs: jnCards, at: 6.9, subAt: 7.7 },
-    { label: '04 — CONTACT',       subs: [],      at: 8.4 },
+    { label: '04 — WRITING',       subs: [],      at: 8.5 },
+    { label: '05 — CONTACT',       subs: [],      at: 9.5 },
   ];
   const LAST = SECTIONS.length - 1;
-  // The whole scroll story, in ten numbers [·H]. Everything else is derived:
-  //   hero [0,1) · fields [1,2) · machines [2,5.9) · journey [5.9,8.1) · contact [8.1,8.4]
+  // The whole scroll story, in eleven numbers [·H]. Everything else is derived:
+  //   hero [0,1) · fields [1,2) · machines [2,5.9) · journey [5.9,8.1)
+  //   writing [8.1,9.2) · contact [9.2,9.5]
   //   inside machines: morph [2,3.8] · band [3.8,4.4] · arm [4.4,5] · algo [5,5.5] · exit [5.5,5.9]
   //   inside journey:  overview [5.9,6.9] -> t4 0…0.45 · zoom [6.9,7.5] -> t4 0.45…1 · hold [7.5,8.1)
+  //   inside writing:  nothing scrubs. t4 is still pinned at 1 by jourAt()'s hold and t5 is
+  //                    still 0 (finAt starts at C0), so the stage is exactly what the journey
+  //                    left — released beads, dim, and the starfield. Reversible for free.
   const M0 = 2, MORPH = 1.8, BAND = 0.6, ARM = 0.6, ALGO = 0.5, EXIT = 0.4;
-  const JOVER = 1.0, JZOOM = 0.6, JOUR = 2.2, CFIN = 0.3;
+  const JOVER = 1.0, JZOOM = 0.6, JOUR = 2.2, WRITE = 1.1, CFIN = 0.3;
   const B0 = M0 + MORPH;      // 3.8 — the hand comes up and the board docks onto the wrist
-  const A0 = B0 + BAND;       // 4.4 — the arm arrives and the signal line draws
+  const A0 = B0 + BAND;       // 4.4 — the arm arrives and the signal lines draw
   const G0 = A0 + ARM;        // 5.0 — pull back off the hardware: the algorithm layer
   const X0 = G0 + ALGO;       // 5.5 — the machine story is told; the exit hands the sheet back
   const J0 = X0 + EXIT;       // 5.9 — the stars
-  const C0 = J0 + JOUR;       // 8.1 — the outro (8.4 = the last pixel of the document)
+  const W0 = J0 + JOUR;       // 8.1 — the writing chapter
+  const C0 = W0 + WRITE;      // 9.2 — the outro (9.5 = the last pixel of the document)
   const journeyCard = document.getElementById('journey-card');
+  const writingBlock = document.getElementById('writing-block');
   const contactBlock = document.getElementById('contact-block');
   const jrNodes = [...document.querySelectorAll('.jr-node')];
   const c01 = v => (v > 0 ? (v < 1 ? v : 1) : 0);
@@ -665,7 +761,8 @@ try {
   // the −1px: s only ever approaches its target asymptotically (the lerp), so a boundary
   // tested exactly would never be reached from below — scrollTo(1H) has to land in fields.
   const secAt = () => (s < innerHeight - 1 ? 0 : s < M0 * innerHeight - 1 ? FSEC
-    : s < J0 * innerHeight - 1 ? MSEC : s < C0 * innerHeight - 1 ? JSEC : CSEC);
+    : s < J0 * innerHeight - 1 ? MSEC : s < W0 * innerHeight - 1 ? JSEC
+      : s < C0 * innerHeight - 1 ? WSEC : CSEC);
   const beatAt = (t0, len) => c01((s - t0 * innerHeight) / (len * innerHeight));
   const morphAt = () => beatAt(M0, MORPH);
   const bandAt = () => beatAt(B0, BAND);
@@ -701,6 +798,22 @@ try {
     });
   }
 
+  // the machine beat's two, same idiom — except their anchors are WORLD points, not sheet
+  // ones, so they come from hero.anchors() (which is derived from the ARM_*/NANO_* knobs) and
+  // go through hero.projectWorld. Moving a knob in scene3d moves the label with it.
+  // An anchor comes back null when its end never loaded (the arm's bin), so a label can never
+  // name a machine that is not on the screen — the same gate scene3d puts on that end's line.
+  const mcNodes = [document.getElementById('mc-arm'), document.getElementById('mc-nano')];
+  function placeMachineLabels(live) {
+    const a = hero.anchors(), dx = 0.020 * innerHeight, dy = 0.032 * innerHeight;
+    [a.arm, a.nano].forEach((p, k) => {
+      mcNodes[k].classList.toggle('active', live && !!p);
+      if (!p) return;
+      const [x, y] = hero.projectWorld(p[0], p[1], p[2]);
+      mcNodes[k].style.transform = `translate(${(x + dx).toFixed(1)}px, ${(y + dy).toFixed(1)}px)`;
+    });
+  }
+
   // the scrubbed chapters, in full: seven numbers and their cards. Called from the scroll tick
   // and from the QA hook, so both paths run exactly the same visual update.
   // ORDER MATTERS: setJourney first, because t4 is what decides who owns λ (the stars keep
@@ -727,6 +840,11 @@ try {
     // …and the sub-ticks follow the SCROLL, not the card: which beat you are standing in
     const mi = tg > 0 ? 3 : t2 > 0 ? 2 : tb > 0 ? 1 : 0;
     machineSubs.forEach((b, j) => b.classList.toggle('on', vSec === MSEC && j === mi));
+    // the fan-out's two labels: up with the signal (which draws over t2 0.05…0.35), and gone
+    // once the exit has taken the machine story away. Placed a little before they are shown,
+    // so the first visible frame is already on its anchor rather than sliding onto it.
+    if (t2 > 0.02 && tx < 0.9) placeMachineLabels(t2 > 0.15 && tx < 0.5);
+    else mcNodes.forEach(el => el.classList.remove('active'));
     const z = tj > 0.75;                        // zoomed: the card and the star dock come up
     if (z !== zoomed) { zoomed = z; render(); }
     // the projected labels name the OVERVIEW; once the zoom starts the card takes over
@@ -739,6 +857,7 @@ try {
     cards.forEach((c, k) => c.classList.toggle('active', vSec === FSEC && k === fieldIdx));
     journeyCard.classList.toggle('active', vSec === JSEC && !zoomed);
     jnCards.forEach((c, k) => c.classList.toggle('active', vSec === JSEC && zoomed && k === planetIdx));
+    writingBlock.classList.toggle('active', vSec === WSEC);
     contactBlock.classList.toggle('active', vSec === CSEC);
     heroCopy.classList.toggle('inactive', vSec !== 0);
     pes.classList.toggle('inactive', vSec !== 0);
@@ -766,11 +885,11 @@ try {
     // retarget — and a retarget there would queue a pending word swap that fires later, once
     // the hold is handed back — but NOT when entering from the fields, where the boundary at
     // 2H is exactly where tMorph is 0 and the morph would refuse to hold.
-    // JOURNEY and CONTACT are releases with no re-ramp: the beads shrink out and the stars
-    // take the stage. scene3d keeps the hold on for as long as t4 > 0, so this is belt-and-
-    // braces for a page that deep-links straight into either one.
+    // JOURNEY, WRITING and CONTACT are releases with no re-ramp: the beads shrink out and the
+    // stars take the stage. scene3d keeps the hold on for as long as t4 > 0, so this is belt-
+    // and-braces for a page that deep-links straight into any of them.
     if (i === MSEC) { if (mAt() > 0.002) PHY.holdRelease(true); }
-    else if (i === JSEC || i === CSEC) PHY.holdRelease(true);
+    else if (i === JSEC || i === WSEC || i === CSEC) PHY.holdRelease(true);
     else { PHY.holdRelease(false); PHY.retarget(ptsFor()); }
     render();
   }
@@ -806,6 +925,49 @@ try {
   }
 
   render();
+
+  // ---------------------------------------------------------------- the two data files
+  // Both are page glue, both fail SOFT: the cards below are complete without them, so a 404
+  // costs the page a list and a grid, never the story. Everything out of a JSON file is
+  // untrusted text — it is escaped on the way into the DOM, and a URL has to be http(s)
+  // before it becomes an href.
+  const esc = v => String(v == null ? '' : v)
+    .replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const href = u => { try { const p = new URL(u, location.href); return /^https?:$/.test(p.protocol) ? p.href : ''; } catch { return ''; } };
+  const getJSON = u => fetch(u).then(r => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))));
+
+  // works.json -> a compact row list on every card carrying a data-works key. Appended after
+  // the card's own .fc-pub, so the registry reads as the long form of that one line.
+  getJSON('./js/data/works.json').then(w => {
+    for (const card of document.querySelectorAll('.field-card[data-works]')) {
+      const list = w[card.dataset.works];
+      if (!Array.isArray(list) || !list.length) continue;
+      const rows = list.map(e => {
+        const u = e && e.url ? href(e.url) : '';
+        return `<div class="fw-row">▸ <span class="fw-t">${esc(e && e.title)}</span>` +
+          `<span class="chip">${esc(e && e.status)}</span>` +
+          (u ? `<a href="${esc(u)}" target="_blank" rel="noopener">↗</a>` : '') + '</div>';
+      }).join('');
+      const lab = card.dataset.worksLabel;
+      (card.querySelector('.fc-pub') || card).insertAdjacentHTML(
+        card.querySelector('.fc-pub') ? 'afterend' : 'beforeend',
+        `<div class="fc-works">${lab ? `<b>${esc(lab)}</b>` : ''}${rows}</div>`);
+    }
+  }).catch(e => console.warn('works: no registry —', e.message));
+
+  // blog.json -> the four post cards of chapter 04, and the one link out.
+  getJSON('./js/data/blog.json').then(b => {
+    const grid = document.getElementById('wr-grid'), more = document.getElementById('wr-more');
+    grid.innerHTML = (b.posts || []).slice(0, 4).map(p => {
+      const u = href(p && p.url);
+      return `<a class="wr-card"${u ? ` href="${esc(u)}"` : ''} target="_blank" rel="noopener">` +
+        `<div class="wr-t">${esc(p && p.title)}</div>` +
+        `<div class="wr-d">${esc(p && p.date)}</div>` +
+        `<div class="wr-x">${esc(p && p.excerpt)}</div></a>`;
+    }).join('');
+    const bu = href(b.blogUrl);
+    if (bu) { more.href = bu; more.hidden = false; }
+  }).catch(e => console.warn('writing: no posts —', e.message));
 
   // scroll is read here, not in a scroll listener: the lerp is what gives the section
   // switch its hysteresis, so a flick past a boundary does not fire two retargets.
@@ -881,7 +1043,8 @@ try {
   //   __hero.section(3); __hero.advance(3)          // the machine put away, zoomed on UT Austin
   //   __hero.journey(0.3); __hero.advance(1)        // the overview, forming
   //   __hero.planet(0); __hero.advance(1)           // cruise back down the line to USTC
-  //   __hero.section(4); __hero.advance(2)          // the finale: ring up, stars receding
+  //   __hero.section(4); __hero.advance(1)          // WRITING: the post grid, stardust behind it
+  //   __hero.section(5); __hero.advance(2)          // the finale: ring up, stars receding
   //   __hero.exit(0.5); __hero.advance(1)           // mid-exit: the board is half handed back
   const adv = __hero.advance;
   __hero.advance = t => {

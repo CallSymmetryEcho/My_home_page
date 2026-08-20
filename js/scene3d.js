@@ -226,7 +226,13 @@ export function createHero(canvas, opts = {}) {
   const pj3 = new Float32Array(3), pjv = new THREE.Vector3();
   function project(x, y, n) {
     sheetXYZ(x, y, n === undefined ? heightAt(x, y) * 0.35 + BEAD_R : n, pj3, 0);
-    pjv.set(pj3[0], pj3[1], pj3[2]).project(camera);
+    return projectWorld(pj3[0], pj3[1], pj3[2]);
+  }
+  // …and the raw one. project() is the SHEET-frame version, which is what a bead or a star
+  // needs; the machine beat's labels hang off world anchors (the arm's column, the nano node)
+  // that were never on the sheet at all, so they project straight.
+  function projectWorld(x, y, z) {
+    pjv.set(x, y, z).project(camera);
     return [(pjv.x * 0.5 + 0.5) * W, (0.5 - pjv.y * 0.5) * H];
   }
 
@@ -800,7 +806,9 @@ export function createHero(canvas, opts = {}) {
   const BAND_URL = './js/data/band-edges.bin';
   const BAND_META = './js/data/band-edges.json';
   const BAND_SPAN = 0.60;    // knob: the hand's longest extent [·H world]
-  const BAND_X = 0.12;       // knob: band centre, right of centre [·W world]
+  // the hand sits just left of centre now, so the machine it commands has the whole right
+  // half to itself and the signal line has real distance to cross (see ARM_X / NANO_X).
+  const BAND_X = -0.05;      // knob: band centre [·W world]
   const BAND_Y = 0.16;       // …its height — the look point [·H world]
   const BAND_Z = 0.05;       // …and depth, just in front of the sheet [·H world]
   // the source pose runs wrist(−z) → fingertips(+z); yaw 90° swings that to screen-right and
@@ -912,39 +920,87 @@ export function createHero(canvas, opts = {}) {
   // The band commands a machine. The arm is a raw edge dump (Float32 line segments, height-
   // normalised, centred) drawn in the same voice as the band — a schematic of a real machine,
   // not a render — and it sits further right and further back, BEHIND the hand that drives it.
-  // The board does NOT come here: it is already on the wrist. What travels is the SIGNAL.
+  // The board does NOT come here: it is already on the wrist. What travels is the SIGNAL — and
+  // it travels to TWO places. The hand does not just drive an arm; it steers the e-tweezers
+  // nano stage as well, so the beat is a fan-out: one source, two scales, both in preparation.
   // setArm(t2) is a pure function of t2, same contract as setMorph.
   const ARM_URL = './js/data/arm-edges.bin';
   const ARM_H = 0.85;        // arm height cap [·H world]
   // …and a footprint cap: this SCARA reaches 2.5× further than it is tall, so height alone
   // would put half the machine outside the frustum (and its near links in the camera's lap).
   const ARM_SPAN = 0.55;     // knob: max horizontal extent [·W world]
-  const ARM_X = 0.55;        // arm base, right of centre — clear of the band [·W world]
+  const ARM_X = 0.42;        // arm base, right of centre — clear of the band [·W world]
   const ARM_Y = 0.0;         // arm base height — sheet level [·H world]
   const ARM_Z = -0.30;       // arm base, behind the sheet and behind the band [·H world]
   const ARM_YAW = -25;       // knob: yaw [deg], so the profile reads instead of the front face
+  // knob: stand it up. The dump's header claims "y-up", but the geometry says otherwise — its
+  // x–y plane is the SCARA's PLAN view (both drive pulleys, the belt, the elbow and the wrist
+  // all lie in it) and a plan view is HORIZONTAL. The machine's own up is therefore +z, which
+  // the slice census confirms: a two-footed stance at low z, the arm beam and pulley stack
+  // above it. −90° about X swings model +z onto world +y (world z picks up −model y), so the
+  // rotated box measures TALL in y — which is exactly what the fit below wants.
+  const ARM_ROT = -90;       // knob: roll about the arm's own X [deg]
   const ARM_OP = 0.38;       // final line opacity
   const DOLLY2 = 2.05;       // camera distance multiplier at t2 = 1 (extends DOLLY)
   const LOOK_DRIFT = 0.35;   // look-at drift toward the arm, as a fraction of its x
 
-  // the intent stream, made visible: one accent polyline bowing from the berth on the wrist to
-  // the machine it commands. It DRAWS IN with t2 (setDrawRange, so the line grows a vertex at a
-  // time instead of fading in as a whole) — the causal arrow of the chapter.
-  const SIG_N = 40;          // points on the arc
-  const SIG_LIFT = 0.13;     // its bow, up and toward the camera [·H world]
+  // the intent stream, made visible — and it FANS OUT: one hand, many scales. Two accent
+  // polylines leave the same berth on the wrist, one to the machine it commands (the SCARA,
+  // the next paper) and one down to the nano stage it steers (e-tweezers, in preparation).
+  // Both DRAW IN with t2 (setDrawRange, so a line grows a vertex at a time instead of fading
+  // in as a whole) — the causal arrows of the chapter, out of a single source.
+  const SIG_N = 40;          // points on each arc
+  const SIG_LIFT = 0.16;     // the arm arc's bow, up and toward the camera [·H world].
+                             // 0.13 -> 0.16: BAND_X/ARM_X now span ~0.47W, and a longer chord
+                             // under the old bow reads as a slack cable instead of an arc.
   const SIG_TO_Y = 0.22;     // knob: aim above the arm's base, so it lands on the column [·H]
   const SIG_OP = 0.55;
-  const sigGeo = new THREE.BufferGeometry();
-  sigGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SIG_N * 3), 3));
-  sigGeo.attributes.position.setUsage(THREE.DynamicDrawUsage);
-  const sigMat = new THREE.LineBasicMaterial({
-    color: 0x8de9ec, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
-  });
-  const signal = new THREE.Line(sigGeo, sigMat);
-  signal.frustumCulled = false;
-  signal.visible = false;
-  scene.add(signal);
+  const NANO_LIFT = 0.09;    // the nano arc's bow — a shorter, flatter hop [·H world]
+  // the nano end of the fan-out, drawn as what it actually is: a dozen particles held in a
+  // field. A Points cloud, not a dozen sprites — one draw call, and it reuses the laser's own
+  // glow texture, so the whole node costs zero network and one material.
+  const NANO_X = 0.30, NANO_Y = -0.14, NANO_Z = 0.28;   // knobs: node centre [·W, ·H, ·H world]
+  const NANO_N = 12;         // dots in the cluster
+  const NANO_R = 0.045;      // …its radius [·H world]
+  const NANO_PT = 0.030;     // …and a dot's own size [·H world]
+
+  function mkSignal() {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SIG_N * 3), 3));
+    g.attributes.position.setUsage(THREE.DynamicDrawUsage);
+    const m = new THREE.LineBasicMaterial({
+      color: 0x8de9ec, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const l = new THREE.Line(g, m);
+    l.frustumCulled = false;
+    l.visible = false;
+    scene.add(l);
+    return { g, m, l };
+  }
+  const sigArm = mkSignal(), sigNano = mkSignal();
   let sigDrawn = 0;
+
+  const nanoGeo = new THREE.BufferGeometry();
+  {
+    const p = new Float32Array(NANO_N * 3);
+    for (let i = 0; i < NANO_N; i++) {   // uniform inside a unit ball, scaled by NANO_R below
+      const u = Math.random() * 2 - 1, th = Math.random() * Math.PI * 2;
+      const r = Math.cbrt(Math.random()), s = Math.sqrt(1 - u * u);
+      p[i * 3] = r * s * Math.cos(th); p[i * 3 + 1] = r * u; p[i * 3 + 2] = r * s * Math.sin(th);
+    }
+    nanoGeo.setAttribute('position', new THREE.BufferAttribute(p, 3));
+  }
+  const nanoMat = new THREE.PointsMaterial({
+    map: glowTex, color: 0x8de9ec, size: 1, sizeAttenuation: true,
+    transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const nano = new THREE.Points(nanoGeo, nanoMat);
+  nano.frustumCulled = false;
+  nano.visible = false;
+  scene.add(nano);
+  // same split as the stars: updateSignal writes the BASE opacity/size here and drawFrame
+  // breathes them, so the pure function of t2 and the clock can never fight over one property.
+  let nanoO = 0, nanoT = 0, nanoPt = 1;
 
   let armGeo = null, arm = null, armBusy = false, armFail = false, armT = 0;
   // NormalBlending, not additive: pulley teeth stack thousands of edges in one spot and
@@ -953,14 +1009,22 @@ export function createHero(canvas, opts = {}) {
     color: 0xcfe4e6, transparent: true, opacity: 0, blending: THREE.NormalBlending, depthWrite: false,
   });
 
-  // fit from the geometry's own bounds, so a re-exported arm needs no new numbers here
+  // fit from the geometry's own bounds, so a re-exported arm needs no new numbers here — but
+  // from the bounds it has AFTER the rotation, not before: ARM_ROT stands the machine up, which
+  // swaps which axis is the tall one, and fitting the un-rotated box would cap the wrong extent
+  // and sink the base below ARM_Y. YXZ order, same as the band: roll it upright about its own
+  // X first, then yaw the standing machine — 'XYZ' would apply the yaw first and tip it back over.
+  const armRotM = new THREE.Matrix4();
+  const armBox = new THREE.Box3(), armDim = new THREE.Vector3();
   function placeArm() {
     if (!arm) return;
-    const bb = armGeo.boundingBox, d = bb.max.clone().sub(bb.min);
-    const s = Math.min(ARM_H * H / d.y, ARM_SPAN * W / Math.max(d.x, d.z));
+    arm.rotation.set(ARM_ROT * Math.PI / 180, ARM_YAW * Math.PI / 180, 0, 'YXZ');
+    armRotM.makeRotationFromEuler(arm.rotation);
+    armBox.copy(armGeo.boundingBox).applyMatrix4(armRotM);   // the box the viewer actually sees
+    armBox.getSize(armDim);
+    const s = Math.min(ARM_H * H / armDim.y, ARM_SPAN * W / Math.max(armDim.x, armDim.z));
     arm.scale.setScalar(s);
-    arm.position.set(ARM_X * W, ARM_Y * H - bb.min.y * s, ARM_Z * H);   // its base lands on ARM_Y
-    arm.rotation.y = ARM_YAW * Math.PI / 180;
+    arm.position.set(ARM_X * W, ARM_Y * H - armBox.min.y * s, ARM_Z * H);   // its base lands on ARM_Y
   }
 
   function loadArm() {
@@ -996,25 +1060,54 @@ export function createHero(canvas, opts = {}) {
     updateJourney();          // the planets and the ring are placed against this frame's dolly
   }
 
-  // the band commands the arm — so the line only exists when BOTH ends do. Missing either bin
-  // is a fail-soft: the beat still plays, just without its arrow.
-  function updateSignal(t, k) {
-    const on = !!(bandV && arm);
-    sigDrawn = on ? Math.round(SIG_N * ss(t / 0.85 < 1 ? t / 0.85 : 1)) : 0;
-    sigMat.opacity = on ? SIG_OP * stg(t, 0.05, 0.35) * k : 0;
-    signal.visible = sigDrawn > 1 && sigMat.opacity > 0.004;
-    if (!signal.visible) return;
-    const p = sigGeo.attributes.position.array, lift = SIG_LIFT * H;
-    const tx = ARM_X * W, ty = (ARM_Y + SIG_TO_Y) * H, tz = ARM_Z * H;
+  // one arc, berth -> anywhere. Both endpoints come from the knobs (dockW is derived from
+  // BAND_*, the targets from ARM_*/NANO_*), so moving a knob moves the line with it.
+  function arcTo(sig, tx, ty, tz, lift, n) {
+    const p = sig.g.attributes.position.array;
     for (let i = 0; i < SIG_N; i++) {
       const u = i / (SIG_N - 1), b = Math.sin(Math.PI * u) * lift;
       p[i * 3] = dockW.x + (tx - dockW.x) * u;
       p[i * 3 + 1] = dockW.y + (ty - dockW.y) * u + b;
       p[i * 3 + 2] = dockW.z + (tz - dockW.z) * u + b * 0.4;
     }
-    sigGeo.attributes.position.needsUpdate = true;
-    sigGeo.setDrawRange(0, sigDrawn);
+    sig.g.attributes.position.needsUpdate = true;
+    sig.g.setDrawRange(0, n);
   }
+
+  // the band commands the arm — so THAT line only exists when both ends do. Missing either bin
+  // is a fail-soft: the beat still plays, just without its arrow. The nano line needs only the
+  // hand, because its far end is procedural — one hand, many scales, and the smaller scale is
+  // the one that never depended on an export.
+  function updateSignal(t, k) {
+    const draw = Math.round(SIG_N * ss(t / 0.85 < 1 ? t / 0.85 : 1));
+    const o = SIG_OP * stg(t, 0.05, 0.35) * k;
+
+    sigDrawn = bandV && arm ? draw : 0;
+    sigArm.m.opacity = bandV && arm ? o : 0;
+    sigArm.l.visible = sigDrawn > 1 && sigArm.m.opacity > 0.004;
+    if (sigArm.l.visible) {
+      arcTo(sigArm, ARM_X * W, (ARM_Y + SIG_TO_Y) * H, ARM_Z * H, SIG_LIFT * H, sigDrawn);
+    }
+
+    const n2 = bandV ? draw : 0;
+    sigNano.m.opacity = bandV ? o * 0.85 : 0;    // the thinner of the two: a hint, not a cable
+    sigNano.l.visible = n2 > 1 && sigNano.m.opacity > 0.004;
+    if (sigNano.l.visible) {
+      arcTo(sigNano, NANO_X * W, NANO_Y * H, NANO_Z * H, NANO_LIFT * H, n2);
+    }
+    nanoO = bandV ? stg(t, 0.15, 0.6) * k : 0;
+    nanoMat.opacity = nanoO;                     // drawFrame breathes this while it is visible
+    nano.visible = nanoO > 0.004;
+  }
+
+  // the two far ends of the fan-out, in WORLD — so the page's projected labels ride the knobs
+  // instead of a copy of them, and follow every resize for free. `arm` is null until its bin
+  // lands, the same gate updateSignal puts on the arm's line: a label naming a machine that is
+  // not on screen is worse than no label, and this way the two can never disagree.
+  const anchors = () => ({
+    arm: arm ? [ARM_X * W, (ARM_Y + SIG_TO_Y) * H, ARM_Z * H] : null,
+    nano: [NANO_X * W, NANO_Y * H, NANO_Z * H],
+  });
 
   // t2 ∈ [0, 1], scrub-safe both ways. The edge dump is fetched lazily on the first t2 > 0.
   function setArm(t) {
@@ -1298,6 +1391,10 @@ export function createHero(canvas, opts = {}) {
     if (board) buildBoardGeom();
     placeBand();                 // …and the berth's world point, which the board docks onto
     placeArm();
+    nano.position.set(NANO_X * W, NANO_Y * H, NANO_Z * H);
+    nano.scale.setScalar(NANO_R * H);
+    nanoPt = NANO_PT * H;        // sizeAttenuation: a point's size is in WORLD units, and
+                                 // object scale does not reach it — so it is set here, not scaled
     updateMorph();               // -> updateBand() -> updateArm(): dolly, look drift, dock transform
 
     // beam hangs from the sky down to the group origin (the impact point)
@@ -1382,6 +1479,15 @@ export function createHero(canvas, opts = {}) {
       }
     }
     if (ring.visible) ring.rotation.z += RING_SPIN * dt;
+    // the nano node drifts and breathes — same split as the twinkle above: updateSignal owns
+    // the base (nanoO), this owns the clock, and neither writes the other's number.
+    if (nano.visible) {
+      nanoT += dt;
+      nano.rotation.y += 0.22 * dt; nano.rotation.x += 0.09 * dt;
+      const b = Math.sin(2 * Math.PI * 0.32 * nanoT);
+      nanoMat.opacity = nanoO * (0.88 + 0.12 * b);
+      nanoMat.size = nanoPt * (1 + 0.16 * b);
+    }
     placeBeads(meshMain, idxMain);
     placeBeads(meshTrac, idxTrac);
     composer.render();
@@ -1440,18 +1546,27 @@ export function createHero(canvas, opts = {}) {
     setPlanet,
     setFinale,
     project,
+    projectWorld,
+    anchors,
     // everything the morph can get wrong, in one readable object
     boardStats() {
       const mch = {
         tb: bandT, t2: armT, ta: algoT, bandLoaded: !!bandV, bandFailed: bandFail,
         armLoaded: !!arm, armFailed: armFail, armOpacity: +armMat.opacity.toFixed(3),
         armSegs: armGeo ? armGeo.attributes.position.count / 2 : 0,
+        // the box AFTER ARM_ROT + ARM_YAW, in geometry units, and the same box on screen.
+        // armDims[1] is the vertical: if it is not the biggest of the three, the arm is lying down.
+        armDims: arm ? [armDim.x, armDim.y, armDim.z].map(v => +v.toFixed(3)) : null,
+        armWorld: arm ? [armDim.x, armDim.y, armDim.z].map(v => Math.round(v * arm.scale.x)) : null,
+        armUpright: arm ? armDim.y > armDim.x && armDim.y > armDim.z : null,
         bandOpacity: +bandMat.opacity.toFixed(3),
         bandSegs: bandGeo ? bandGeo.attributes.position.count / 2 : 0,
         dockWorld: [dockW.x, dockW.y, dockW.z].map(v => Math.round(v)),
         dockScale: +dockScale().toFixed(4),
         signalProgress: +(sigDrawn / SIG_N).toFixed(3),
-        signalOpacity: +sigMat.opacity.toFixed(3),
+        signalOpacity: +sigArm.m.opacity.toFixed(3),
+        nanoOpacity: +sigNano.m.opacity.toFixed(3),
+        nanoNode: +nanoO.toFixed(3), nanoDots: NANO_N,
         algoDim: +algoDim().toFixed(3),
       };
       const jrn = {
@@ -1513,6 +1628,8 @@ export function createHero(canvas, opts = {}) {
     setPlanet,
     setFinale,
     project,
+    projectWorld,
+    anchors,
     // the one table the journey is authored in — the page pins its overview labels to it,
     // so a label can never drift off its own planet: [name, x·W, y·H, n̂ offset ·H]
     nodes: PLANETS.map(([n, x, y, z]) => [n, x, y, z]),
@@ -1530,7 +1647,8 @@ export function createHero(canvas, opts = {}) {
       if (armGeo) armGeo.dispose();
       if (bandGeo) bandGeo.dispose();
       armMat.dispose(); bandMat.dispose();
-      sigGeo.dispose(); sigMat.dispose();
+      for (const s of [sigArm, sigNano]) { s.g.dispose(); s.m.dispose(); }
+      nanoGeo.dispose(); nanoMat.dispose();
       traceMat.dispose(); outMat.dispose(); padMat.dispose(); faceMat.dispose();
       if (photoMat.map) photoMat.map.dispose();
       photoMat.dispose();

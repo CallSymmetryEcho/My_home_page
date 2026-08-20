@@ -1,1 +1,1 @@
-{"segments": 15743, "unit": "height=1", "src": "SCARA Robot_V1.STL", "note": "Float32 xyz*2 per segment, centered, y-up (v2: vertical flipped)"}
+{"segments": 15207, "unit": "height=1", "src": "SCARA Robot_V1.STL", "note": "v3: model true-up is +z (scene applies ARM_ROT); stray plate slabs at |y|>0.38 removed"}
