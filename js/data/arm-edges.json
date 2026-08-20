@@ -1,1 +1,1 @@
-{"segments": 10811, "unit": "height=1", "src": "SCARA Robot_V1.STL", "note": "v5: true-up=+z; any endpoint beyond |z|>0.98 dropped (stray plates gone)"}
+{"segments": 13936, "unit": "height=1", "src": "SCARA Robot_V1.STL", "note": "v6: denser (18deg dihedral, 0.7mm min); strays |z|>0.98 dropped; true-up=+z"}
