@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Machines — Bin Lian</title>
+<style>
+  :root {
+    --bg: #000004;
+    --text: #f4f7f7;
+    --text-dim: #8b9498;
+    --accent: #9beff0;          /* the learned-policy term and nothing else. */
+    --text-mid: #b9c2c5;
+    --hair: rgba(255,255,255,0.10);
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { margin: 0; box-sizing: border-box; }
+  /* single viewport: this chapter has no scroll story, only the board */
+  body { background: var(--bg); font-family: system-ui, sans-serif; height: 100vh; overflow: hidden; }
+  canvas#c3d { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  .nav {
+    position: fixed; top: 0; left: 0; right: 0; height: 64px; z-index: 3;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 clamp(20px, 4vw, 44px);
+    border-bottom: 1px solid var(--hair);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  .nav .mark {
+    font-size: 13px; font-weight: 500; letter-spacing: .34em;
+    color: var(--text); text-decoration: none;
+  }
+  .nav nav { display: flex; gap: clamp(18px, 3vw, 34px); }
+  .nav nav a {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
+    color: var(--text-dim); text-decoration: none; transition: color .25s ease;
+  }
+  .nav nav a:hover, .nav nav a[aria-current] { color: var(--text); }
+
+  /* Lower-left, so the formation keeps the centre of the frame to itself. */
+  .field-card {
+    position: fixed; left: clamp(20px, 6vw, 80px); bottom: 14vh; z-index: 2;
+    max-width: 32em; pointer-events: none; user-select: none;
+    opacity: 0; transform: translateY(14px);
+    transition: opacity .6s ease, transform .6s ease;
+    /* soft dark scrim so the copy wins against the fabric lines */
+    padding: 22px 26px;
+    background: radial-gradient(ellipse 115% 115% at 35% 50%, rgba(0,0,4,0.82) 40%, rgba(0,0,4,0) 78%);
+  }
+  .field-card.active { opacity: 1; transform: translateY(0); }
+  .fc-kicker {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .22em;
+    color: var(--text-dim); opacity: .65;
+  }
+  .fc-title {
+    font-size: clamp(22px, 2.2vw, 26px); font-weight: 300; color: var(--text);
+    margin: 13px 0 15px; letter-spacing: -.005em;
+  }
+  /* the chapter's thesis is the arrow: hand-tuned control -> learned policy */
+  .fc-eq {
+    font-family: Georgia, 'Times New Roman', serif; font-style: italic;
+    font-size: 19px; line-height: 1.6; color: var(--text-mid);
+    margin: 0 0 16px;
+  }
+  .fc-eq .v-term { color: var(--accent); }
+  .fc-body { font-size: 15px; line-height: 1.65; color: var(--text-mid); }
+  .fc-facts {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .05em;
+    color: var(--accent); opacity: .8; margin-top: 18px; line-height: 1.9;
+  }
+  .fc-pub {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .05em; color: var(--text-dim);
+    margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .chip {
+    border: 1px solid var(--hair); border-radius: 2px; padding: 3px 7px;
+    font-size: 9.5px; letter-spacing: .16em; color: var(--text-dim);
+  }
+  @media (max-width: 760px) { .field-card { bottom: 9vh; max-width: none; right: 20px; } }
+
+  .fallback-note {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px; z-index: 5;
+    font-family: var(--mono); font-size: 12px; color: var(--text-dim);
+    letter-spacing: .06em; text-align: center; padding: 20px;
+  }
+  .fallback-note a { color: var(--accent); }
+</style>
+</head>
+<body>
+<canvas id="c3d"></canvas>
+
+<header class="nav">
+  <a class="mark" href="#">BIN LIAN</a>
+  <nav>
+    <a href="./hero3d-prototype.html">RESEARCH</a>
+    <a href="#" aria-current="page">MACHINES</a>
+    <a href="image/file/Bin_s_Resume.pdf">CV</a>
+  </nav>
+</header>
+
+<article class="field-card">
+  <p class="fc-kicker">CHAPTER 02 — MACHINES</p>
+  <h2 class="fc-title">From physics to machines</h2>
+  <p class="fc-eq">u(t) = K<sub>p</sub>e + K<sub>i</sub>∫e·dt + K<sub>d</sub>ė &nbsp;→&nbsp;
+    <span class="v-term">u<sub>t</sub> = π<sub>θ</sub>(s<sub>t</sub>)</span></p>
+  <p class="fc-body">I design the electronics, build the machines, and write the policies that
+    close the loop — experiments that run themselves.</p>
+  <p class="fc-facts">
+    robotic arm · 300 mm reach · ±0.02 mm repeatability · self-built 18.18:1 drives<br>
+    ML surrogate for FEM · 6 h → 7 ms<br>
+    5-finger digital twin from 4 hydrogel sensors · 98%<br>
+    autonomous wet-lab loop · CV + LLM + RL
+  </p>
+  <p class="fc-pub"><span class="chip">SYSTEMS</span></p>
+</article>
+
+<script type="importmap">
+{ "imports": { "three": "./js/vendor/three.module.js" } }
+</script>
+<script type="module">
+function fallback(why) {
+  document.getElementById('c3d').style.display = 'none';
+  for (const el of document.querySelectorAll('.field-card')) el.style.display = 'none';
+  const d = document.createElement('div');
+  d.className = 'fallback-note';
+  d.innerHTML = '3D hero unavailable in this browser' +
+    '<a href="./hero-prototype.html">open the 2D version &rarr;</a>';
+  document.body.appendChild(d);
+  console.warn('machines:', why);
+}
+
+// dynamic import so a missing importmap / module-resolution failure lands here too,
+// not just a runtime throw out of createHero (no WebGL2 -> same note)
+try {
+  const [scene3d, PHY, F] = await Promise.all([
+    import('./js/scene3d.js'), import('./js/physics.js'), import('./js/formations-pcb.js'),
+  ]);
+  scene3d.createHero(document.getElementById('c3d'));
+
+  const card = document.querySelector('.field-card');
+  let formed = false;
+  // The board is not a tween: retarget() releases the word's field, lets the beads fly, and
+  // ramps the trace wells in. The card arrives with it.
+  function form() {
+    if (formed) return;
+    formed = true;
+    PHY.retarget(F.pcb(innerWidth, innerHeight));
+    card.classList.add('active');
+  }
+  setTimeout(form, 2500);   // let the gas -> ramp intro settle first
+
+  // formations are generated against a viewport, so a resize needs new points.
+  // 260 ms > scene3d's own 200 ms resize debounce, so PHY.resize() has already run.
+  let rt = 0;
+  addEventListener('resize', () => {
+    clearTimeout(rt);
+    rt = setTimeout(() => { if (formed) PHY.retarget(F.pcb(innerWidth, innerHeight)); }, 260);
+  });
+
+  // QA hook: createHero already published __hero. Timers are throttled in hidden tabs, so
+  // the first advance() forces the formation itself — __hero.advance(5) always lands on the
+  // finished board, whether or not the 2.5 s timer got to run.
+  const adv = __hero.advance;
+  __hero.advance = t => { form(); adv(t); };
+
+  // reduced motion: createHero fast-forwards the word and stops rAF, so nothing would ever
+  // reach the board. Jump straight to it.
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) __hero.advance(6);
+} catch (e) {
+  fallback(e);
+}
+</script>
+</body>
+</html>

@@ -60,7 +60,9 @@ hero3d-prototype.html Step1 交付物
 - 决策：**默认 3D、2D 降级版（hero-prototype.html）到整站阶段直接删除**；无 WebGL 场景给静态提示即可
 - [ ] ①c 镜头视角/远近的沉浸式调优（后续打磨项，Bin 提出）
 - 流程注记：`node --check` 对带 ESM import 的 .js 会漏报语法错误——JS 验证必须实际加载页面（或 --input-type=module）
-- [x] ② Fields of Control：5 屏滚动叙事上线——同一批珠子随章节重排（焦斑+衍射环 / 六角晶格 / 13 条链化线阵 / 凝胶渗流网络），转场 = retarget 的释放→飞行→re-ramp 纯物理链路（无热脉冲）；四张极简内容卡（PREPRINT/ONGOING/PUBLISHED 状态章）→ 待 Bin 实机滚动验收
+- [x] ② Fields of Control 编队与卡片上线（焦斑+衍射环 / 六角晶格 / 13 条链化线阵 / 凝胶渗流网络；retarget 纯物理转场）
+- [ ] ②b **信息架构修正（Bin，进行中）**：纵轴只切大板块、Fields 四场改横向切换（dock 点击 / 方向键 / 触控板横滑）；卡片改「主导公式优先」——I_SERS∝|E|⁴ / κ(T) 屏蔽库仑 / F_DEP∝∇|E|² / Flory–Huggins χ，期刊与引用缩写全部弱化（只留状态章 + 短题名）；导览双组件：底部悬浮四格 field dock + 右缘 **Time Machine 式时间线**（扇形缩放刻度 + 庄严 mono 标签标注当前位置）
+- [ ] ③ From Physics to Machines（并行进行中）：PCB 走线闭环编队（Manhattan 走线 + 45° 折角 + 过孔环 + 元件焊盘）、规格书卡片（PID → π_θ 策略的公式弧线）、standalone 预览页先行
 - [ ] ③ Closing the Loop（+小游戏后置）
 - [ ] ④ Journey ⑤ Toolbox ⑥ Awards+Teaching+Footer（可合并）
 - [ ] ⑦ 收尾：LATTICE/WIRES 模式循环、配色精修（必做）、移动端/性能/a11y
