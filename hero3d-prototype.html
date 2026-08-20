@@ -13,6 +13,7 @@
     --text-mid: #b9c2c5;
     --hair: rgba(255,255,255,0.10);
     --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --tl-gutter: 210px;         /* the right column the time machine reserves for its labels */
   }
   * { margin: 0; box-sizing: border-box; }
   body { background: var(--bg); font-family: system-ui, sans-serif; }
@@ -22,14 +23,16 @@
      swarm moves. Panes are empty spacers; the cards inside them are position:fixed.
      Vertical scroll = MAJOR sections only. Content inside a section switches horizontally. */
   .pane  { height: 100vh; }
-  /* MACHINES is the one section that scrubs instead of switching: its height IS the scrub
-     range (2.6H = 260vh of scrub, plus the 0.4H EXIT that hands the sheet back).
-     Panes: hero 1 + fields 1 + machines 3.1 + journey 1.3 + contact 1 = 7.4H of document,
-     so the last pixel of scroll is s = 6.4H. Boundaries [·H]:
-       hero [0,1) · fields [1,2) · machines [2,5) — scrub [2,4.6], exit [4.6,5]
-       journey [5,6.3) · contact [6.3,6.4]                                          */
+  /* MACHINES and JOURNEY are the two sections that scrub instead of switching: their height
+     IS their scrub range.
+     Panes: hero 1 + fields 1 + machines 3.1 + journey 2.2 + contact 1.2 = 8.5H of document,
+     so the last pixel of scroll is s = 7.5H. Boundaries [·H]:
+       hero [0,1) · fields [1,2) · machines [2,5) — morph [2,3.8], arm [3.8,4.6], exit [4.6,5]
+       journey [5,7.2) — overview [5,6], zoom [6,6.6], zoomed browsing [6.6,7.2)
+       contact [7.2,7.5]                                                            */
   .pane-tall { height: 310vh; }
-  .pane-journey { height: 130vh; }
+  .pane-journey { height: 220vh; }
+  .pane-contact { height: 120vh; }
 
   .nav {
     position: fixed; top: 0; left: 0; right: 0; height: 64px; z-index: 3;
@@ -123,6 +126,33 @@
   @media (max-width: 760px) { .field-card { bottom: 15vh; max-width: none; right: 20px; } }
   #journey-card .fc-body { margin-top: 14px; }
 
+  /* the zoomed planet's detail card: the SAME card, mirrored to the right edge, because the
+     planet parks left of centre. Text stays left-aligned — a right-ragged block reads as a
+     pull-quote, and these are facts. */
+  .jn-card {
+    /* --tl-gutter, not a vw clamp: the timeline's label is sized in px, so the column it
+       needs is the same width on every viewport. The field cards never had to care — they
+       live bottom-LEFT — but a right-hand card lands straight on top of it. */
+    /* the vw cap keeps the card off the planet's limb on narrow desktops — the planet is
+       anchored at a fixed fraction of W, so the two close in on each other as W shrinks */
+    left: auto; right: var(--tl-gutter); bottom: max(16vh, 120px); max-width: min(24em, 36vw);
+    background: radial-gradient(ellipse 118% 118% at 60% 50%, rgba(0,0,4,0.86) 44%, rgba(0,0,4,0) 80%);
+  }
+  .jn-deg {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+    color: var(--text-dim); margin: -4px 0 15px;
+  }
+  /* the one call to action in the whole chapter, so it gets the accent border and nothing else */
+  .field-card a.jn-cv {
+    display: inline-block; margin-top: 22px; padding: 11px 20px;
+    border: 1px solid rgba(155,239,240,.45); border-radius: 3px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: .2em;
+    color: var(--accent); text-decoration: none;
+    transition: background-color .3s ease, color .3s ease, border-color .3s ease;
+  }
+  .field-card a.jn-cv:hover { background: rgba(155,239,240,.12); border-color: rgba(155,239,240,.8); color: var(--text); }
+  @media (max-width: 760px) { .jn-card { left: 20px; right: 20px; max-width: none; } }
+
   /* ---------------------------------------------------------------- chapter 03 — journey
      One label per star cluster. Each is pinned to its cluster's PROJECTED screen position
      (scene3d.project, driven every frame), because the sheet is tilted and the camera moves:
@@ -137,30 +167,38 @@
   .jr-node.active { opacity: .85; }
 
   /* ---------------------------------------------------------------- chapter 04 — contact
-     The outro. Everything else on the page has stepped aside by now; this is the last card
-     and the only one with live links. */
+     The outro, and the one MONUMENTAL block on the page: everything else has stepped aside,
+     the camera has pulled far back, and a single orbit ring turns around this. Generous
+     vertical rhythm, everything centred, nothing competing. */
   .outro {
     position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2;
-    text-align: center; user-select: none; padding: 44px 60px;
-    opacity: 0; pointer-events: none; transition: opacity .8s ease;
-    background: radial-gradient(ellipse 95% 95% at center, rgba(0,0,4,0.86) 38%, rgba(0,0,4,0) 76%);
+    text-align: center; user-select: none;
+    padding: clamp(38px, 7vh, 74px) clamp(28px, 7vw, 92px);
+    opacity: 0; pointer-events: none; transition: opacity .9s ease;
+    background: radial-gradient(ellipse 95% 95% at center, rgba(0,0,4,0.88) 40%, rgba(0,0,4,0) 78%);
   }
   .outro.active { opacity: 1; }
-  .outro img { height: 36px; width: auto; display: block; margin: 0 auto 24px; }
-  .outro-name { font-size: 13px; font-weight: 500; letter-spacing: .34em; color: var(--text); }
+  .outro img { height: 80px; width: auto; display: block; margin: 0 auto clamp(26px, 5vh, 46px); opacity: .92; }
+  .outro-name {
+    font-size: clamp(30px, 5vw, 46px); font-weight: 200; line-height: 1.1;
+    letter-spacing: .3em; text-indent: .3em;   /* re-centre: letter-spacing pads the right edge */
+    color: var(--text); white-space: nowrap;
+  }
   .outro-line {
-    font-size: clamp(15px, 2vw, 19px); font-weight: 300; color: var(--text-mid); margin-top: 16px;
+    font-family: Georgia, 'Times New Roman', serif; font-style: italic;
+    font-size: clamp(16px, 2.1vw, 21px); color: var(--text-mid);
+    margin-top: clamp(20px, 3.6vh, 34px);
   }
   .outro-links {
-    display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 34px;
-    font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
+    display: flex; justify-content: center; align-items: center; flex-wrap: wrap;
+    gap: 34px; margin-top: clamp(38px, 7vh, 66px);
+    font-family: var(--mono); font-size: 12px; letter-spacing: .2em;
   }
   .outro-links a {
     color: var(--text-dim); text-decoration: none; pointer-events: auto;
     transition: color .25s ease;
   }
   .outro-links a:hover { color: var(--text); }
-  .outro-links i { font-style: normal; color: var(--text-dim); opacity: .35; }
 
   /* ---------------------------------------------------------------- field dock
      The horizontal wayfinder. Bottom-centre, between the formula panel (bottom-left)
@@ -344,9 +382,12 @@
   </article>
 </section>
 
-<!-- Chapter 03. The machine story fades out (tExit) and the beads — the thread of the whole
-     site — fly home into the constellation of the path that got here. The four labels are
-     placed from js against the projected cluster positions; the text below is the only copy. -->
+<!-- Chapter 03. The machine story fades out (tExit) and the fabric hands the stage to FOUR
+     PLANETS — one per school, wired like the Big Dipper. Two acts inside one pane:
+       overview (t4 0→.45)  the constellation forms; the four projected labels name it
+       zoom     (t4 .45→1)  one planet swells and parks left; its card comes up on the right,
+                            and from there the schools switch HORIZONTALLY (dock/arrows/wheel)
+     while the camera cruises planet-to-planet along the lines. The CV lives on the last card. -->
 <section class="pane pane-journey" id="journey">
   <article class="field-card" id="journey-card">
     <p class="fc-kicker">CHAPTER 03 — JOURNEY</p>
@@ -356,26 +397,60 @@
   <span class="jr-node">BERKELEY · 2019</span>
   <span class="jr-node">BROWN · 2020</span>
   <span class="jr-node">UT AUSTIN · 2021 —</span>
+
+  <article class="field-card jn-card" data-n="01" data-name="USTC">
+    <p class="fc-kicker">STOP 01 — HEFEI</p>
+    <h2 class="fc-title">USTC</h2>
+    <p class="jn-deg">B.S. Material Physics · 2017–2021</p>
+    <p class="fc-body">Chemistry &amp; Materials Science — where matter first became my language.</p>
+    <p class="fc-facts">physics-innovation grand prize · quantum-physics TA</p>
+  </article>
+
+  <article class="field-card jn-card" data-n="02" data-name="BERKELEY">
+    <p class="fc-kicker">STOP 02 — BERKELEY</p>
+    <h2 class="fc-title">UC Berkeley</h2>
+    <p class="jn-deg">Summer exchange · 2019</p>
+    <p class="fc-body">A summer of quantum mechanics and real analysis on the Pacific.</p>
+    <p class="fc-facts">Physics 137A · Math 104</p>
+  </article>
+
+  <article class="field-card jn-card" data-n="03" data-name="BROWN">
+    <p class="fc-kicker">STOP 03 — PROVIDENCE</p>
+    <h2 class="fc-title">Brown</h2>
+    <p class="jn-deg">Research intern · 2020</p>
+    <p class="fc-body">Machine learning meets surface chemistry in the Rubenstein group.</p>
+    <p class="fc-facts">ML-assisted material design</p>
+  </article>
+
+  <article class="field-card jn-card" data-n="04" data-name="UT AUSTIN">
+    <p class="fc-kicker">STOP 04 — AUSTIN</p>
+    <h2 class="fc-title">UT Austin</h2>
+    <p class="jn-deg">Ph.D., Texas Materials Institute · 2021 —</p>
+    <p class="fc-body">Commanding matter with fields in the Fan lab.</p>
+    <p class="fc-facts">three endowed fellowships</p>
+    <a class="jn-cv" href="image/file/Bin_s_Resume.pdf">DOWNLOAD CV</a>
+  </article>
 </section>
 
-<!-- Chapter 04. The outro: the constellation disperses into stardust and the page ends on
-     the one line and the five links. -->
-<section class="pane" id="contact">
+<!-- Chapter 04. The outro: the camera pulls far back, the planets shrink to star-points
+     drifting up-right, one orbit ring turns, and the page ends on the name. -->
+<section class="pane pane-contact" id="contact">
   <div class="outro" id="contact-block">
     <img src="image/logo-bin-mono.png" alt="">
     <p class="outro-name">BIN LIAN</p>
     <p class="outro-line">Commanding matter with fields.</p>
     <p class="outro-links">
-      <a href="mailto:bin_lian@utexas.edu">EMAIL</a><i>·</i>
-      <a href="https://github.com/CallSymmetryEcho">GITHUB</a><i>·</i>
-      <a href="https://www.linkedin.com/in/bin-lian">LINKEDIN</a><i>·</i>
-      <a href="https://blog.bin-lian.com">BLOG</a><i>·</i>
+      <a href="mailto:bin_lian@utexas.edu">EMAIL</a>
+      <a href="https://github.com/CallSymmetryEcho">GITHUB</a>
+      <a href="https://www.linkedin.com/in/bin-lian">LINKEDIN</a>
+      <a href="https://blog.bin-lian.com">BLOG</a>
       <a href="image/file/Bin_s_Resume.pdf">CV</a>
     </p>
   </div>
 </section>
 
-<div class="dock"></div>
+<div class="dock" id="fdock"></div>
+<div class="dock" id="pdock"></div>
 <div class="tl"></div>
 
 <div class="physics-panel">
@@ -431,25 +506,30 @@ try {
   // pure functions of s, so scrubbing back undoes them exactly.
   const GEN = { focus: F.focus, lattice: F.lattice, wires: F.wires, network: F.network };
   const cards = [...document.querySelectorAll('#fields .field-card')];
+  const jnCards = [...document.querySelectorAll('.jn-card')];
   const FSEC = 1, MSEC = 2, JSEC = 3, CSEC = 4;      // fields · machines · journey · contact
-  // `at` = where the timeline tick lands you [·H]. MACHINES lands on the materialized board,
-  // not on the first frame of the release; CONTACT is simply the bottom of the page.
+  // `at` = where the timeline tick lands you [·H]; `subAt` = where a SUB-tick lands you, for
+  // the sections whose sub-content only exists at a particular depth of the scrub. MACHINES
+  // lands on the materialized board, JOURNEY on the fully-formed overview (and its sub-ticks
+  // inside the zoomed browsing hold); CONTACT is simply the bottom of the page.
   const SECTIONS = [
-    { label: '00 — HOME',          subs: 0,           at: 0 },
-    { label: '01 — FIELD CONTROL', subs: cards.length, at: 1 },
-    { label: '02 — MACHINES',      subs: 0,           at: 3.9 },
-    { label: '03 — JOURNEY',       subs: 0,           at: 5.0 },
-    { label: '04 — CONTACT',       subs: 0,           at: 6.4 },
+    { label: '00 — HOME',          subs: [],      at: 0 },
+    { label: '01 — FIELD CONTROL', subs: cards,   at: 1 },
+    { label: '02 — MACHINES',      subs: [],      at: 3.9 },
+    { label: '03 — JOURNEY',       subs: jnCards, at: 6.0, subAt: 6.8 },
+    { label: '04 — CONTACT',       subs: [],      at: 7.5 },
   ];
   const LAST = SECTIONS.length - 1;
-  // The whole scroll story, in five numbers [·H]. Everything else is derived:
-  //   hero [0,1) · fields [1,2) · machines [2,5) · journey [5,6.3) · contact [6.3,6.4]
-  // and inside machines: morph [2,3.8] · arm [3.8,4.6] · exit [4.6,5].
-  const M0 = 2, MORPH = 1.8, ARM = 0.8, EXIT = 0.4, JOUR = 1.3;
+  // The whole scroll story, in seven numbers [·H]. Everything else is derived:
+  //   hero [0,1) · fields [1,2) · machines [2,5) · journey [5,7.2) · contact [7.2,7.5]
+  //   inside machines: morph [2,3.8] · arm [3.8,4.6] · exit [4.6,5]
+  //   inside journey:  overview [5,6] -> t4 0…0.45 · zoom [6,6.6] -> t4 0.45…1 · hold [6.6,7.2)
+  const M0 = 2, MORPH = 1.8, ARM = 0.8, EXIT = 0.4;
+  const JOVER = 1.0, JZOOM = 0.6, JOUR = 2.2, CFIN = 0.3;
   const A0 = M0 + MORPH;      // 3.8 — the board docks into the machine from here
   const X0 = A0 + ARM;        // 4.6 — the machine story is told; the exit hands the sheet back
-  const J0 = X0 + EXIT;       // 5.0 — the constellation
-  const C0 = J0 + JOUR;       // 6.3 — the outro (6.4 = the last pixel of the document)
+  const J0 = X0 + EXIT;       // 5.0 — the planets
+  const C0 = J0 + JOUR;       // 7.2 — the outro (7.5 = the last pixel of the document)
   const machinesCard = document.getElementById('machines-card');
   const journeyCard = document.getElementById('journey-card');
   const contactBlock = document.getElementById('contact-block');
@@ -457,28 +537,36 @@ try {
   const c01 = v => (v > 0 ? (v < 1 ? v : 1) : 0);
   const heroCopy = document.querySelector('.hero-copy');
   const pes = document.querySelector('.physics-panel');
-  const dock = document.querySelector('.dock');
+  const fdock = document.getElementById('fdock');
+  const pdock = document.getElementById('pdock');
   const tl = document.querySelector('.tl');
   const clamp = (v, hi) => Math.max(0, Math.min(hi, v | 0));
 
-  dock.innerHTML = cards.map((c, k) =>
-    `<button data-k="${k}"><b>${c.dataset.n}</b>${c.dataset.name}</button>`).join('');
+  // one dock idiom, two docks: the fields' and the journey's. Both are built from their own
+  // cards' data-n / data-name, so adding a stop is adding a card.
+  const mkDock = (el, list) => {
+    el.innerHTML = list.map((c, k) =>
+      `<button data-k="${k}"><b>${c.dataset.n}</b>${c.dataset.name}</button>`).join('');
+    return [...el.children];
+  };
+  const dockBtns = mkDock(fdock, cards);
+  const pdockBtns = mkDock(pdock, jnCards);
   tl.innerHTML = SECTIONS.map((s, k) => `<div class="tl-sec" data-k="${k}">
       <div class="tl-main"><span class="tl-label">${s.label}</span>
         <button class="tl-tick" aria-label="${s.label}"></button></div>
-      ${s.subs ? `<div class="tl-subs">${cards.map((c, j) =>
+      ${s.subs.length ? `<div class="tl-subs">${s.subs.map((c, j) =>
         `<button class="tl-sub" data-j="${j}" aria-label="${c.dataset.name}"></button>`).join('')}</div>` : ''}
     </div>`).join('');
-  const dockBtns = [...dock.children];
   const tlSecs = [...tl.children];
-  const tlSubs = [...tl.querySelectorAll('.tl-sub')];
+  const subsOf = k => [...tlSecs[k].querySelectorAll('.tl-sub')];
+  const fieldSubs = subsOf(FSEC), planetSubs = subsOf(JSEC);
 
   // vSec starts at 0 because the page boots into the word: re-targeting it here would cut
   // the gas → ramp intro short. render() only touches the DOM, never PHY.
-  let vSec = 0, fieldIdx = 0;
+  let vSec = 0, fieldIdx = 0, planetIdx = 0, zoomed = false;
   let s = scrollY;
   let qaSec = null;   // QA override: pin a section without scrolling (hidden-tab captures composite fixed layers wrongly at scrollY != 0)
-  let qMorph = null, qArm = null, qExit = null;   // same idea for the scrub numbers: null = follow the scroll
+  let qMorph = null, qArm = null, qExit = null, qJour = null, qFin = null;   // same idea for the scrub numbers: null = follow the scroll
   // boundary-based, not round(s/H): the machines section is 3 viewports tall, so a
   // nearest-multiple rule would hand most of it to a section that does not exist.
   // the −1px: s only ever approaches its target asymptotically (the lerp), so a boundary
@@ -488,45 +576,68 @@ try {
   const morphAt = () => c01((s - M0 * innerHeight) / (MORPH * innerHeight));
   const armAt = () => c01((s - A0 * innerHeight) / (ARM * innerHeight));
   const exitAt = () => c01((s - X0 * innerHeight) / (EXIT * innerHeight));
+  // two-piece ramp, then a HOLD: the last 0.6H of the journey pane is where you browse the
+  // planets horizontally, so t4 must sit still at 1 there instead of running out of scroll.
+  const jourAt = () => {
+    const j = (s - J0 * innerHeight) / innerHeight;
+    return j <= 0 ? 0 : j < JOVER ? 0.45 * j / JOVER
+      : j < JOVER + JZOOM ? 0.45 + 0.55 * (j - JOVER) / JZOOM : 1;
+  };
+  const finAt = () => c01((s - C0 * innerHeight) / (CFIN * innerHeight));
   const mAt = () => (qMorph !== null ? qMorph : morphAt());   // the live tMorph, QA pin included
-  const ptsFor = () => (vSec === FSEC ? GEN[cards[fieldIdx].dataset.gen](innerWidth, innerHeight)
-    : vSec === JSEC ? F.journey(innerWidth, innerHeight) : null);
+  const jAt = () => (qJour !== null ? qJour : jourAt());
+  // the journey has no formation any more — it is planets. Only the fields still feed physics.
+  const ptsFor = () => (vSec === FSEC ? GEN[cards[fieldIdx].dataset.gen](innerWidth, innerHeight) : null);
 
-  // the labels ride the real projection of their own star cluster: the sheet is tilted, the
-  // camera dollies home across the exit and parallaxes with the pointer, so a fixed percentage
-  // would drift off the beads. 4 transforms a frame, only while the journey is on screen.
-  // the chains only ever leave a node up-right and arrive from down-left, so the label goes
-  // in the one quadrant that is always empty: just below-right of the cluster.
-  const LABEL_DX = 30, LABEL_DY = 14;                // clears the cluster's own 3σ tail
+  // the labels ride the real projection of their own planet: the sheet is tilted, the camera
+  // dollies home across the exit and parallaxes with the pointer, so a fixed percentage would
+  // drift off. hero.nodes is scene3d's own planet table, so a label cannot land on the wrong
+  // one; the n̂ offset is the planet's depth stagger, projected at the same depth it sits at.
+  // The chains only ever leave a node up-right, so the label goes below-right of the planet,
+  // clear of its own disc (which scales with H — hence the viewport-relative offsets).
+  const NODES = hero.nodes;
   function placeLabels() {
+    const dx = 0.050 * innerHeight, dy = 0.034 * innerHeight;
     jrNodes.forEach((el, k) => {
-      const n = F.JOURNEY_NODES[k];
-      const [x, y] = hero.project(n[1] * innerWidth, n[2] * innerHeight);
-      el.style.transform = `translate(${(x + LABEL_DX).toFixed(1)}px, ${(y + LABEL_DY).toFixed(1)}px)`;
+      const n = NODES[k];
+      const [x, y] = hero.project(n[1] * innerWidth, n[2] * innerHeight, n[3] * innerHeight);
+      el.style.transform = `translate(${(x + dx).toFixed(1)}px, ${(y + dy).toFixed(1)}px)`;
     });
   }
 
-  // the scrubbed chapters, in full: three numbers and a card. Called from the scroll tick and
-  // from the QA hook, so both paths run exactly the same visual update.
+  // the scrubbed chapters, in full: five numbers and their cards. Called from the scroll tick
+  // and from the QA hook, so both paths run exactly the same visual update.
+  // ORDER MATTERS: setJourney first, because t4 is what decides who owns λ (the planets keep
+  // the beads released for the rest of the page) — every later setter re-derives on top of it.
   function scrub() {
-    const tm = mAt(), tx = qExit !== null ? qExit : exitAt();
-    hero.setExit(tx);             // first: the exit is what decides whether the morph still owns λ
+    const tm = mAt(), tx = qExit !== null ? qExit : exitAt(), tj = jAt();
+    hero.setJourney(tj);
+    hero.setFinale(qFin !== null ? qFin : finAt());
+    hero.setExit(tx);
     hero.setMorph(tm);
     hero.setArm(qArm !== null ? qArm : armAt());
     machinesCard.classList.toggle('active', tm > 0.75 && tx < 0.2);
-    if (vSec === JSEC) placeLabels();
+    const z = tj > 0.75;                        // zoomed: the card and the planet dock come up
+    if (z !== zoomed) { zoomed = z; render(); }
+    // the projected labels name the OVERVIEW; once the zoom starts the card takes over
+    const over = vSec === JSEC && tj > 0.08 && tj < 0.55;
+    jrNodes.forEach(el => el.classList.toggle('active', over));
+    if (vSec === JSEC && tj < 0.6) placeLabels();
   }
 
   function render() {
     cards.forEach((c, k) => c.classList.toggle('active', vSec === FSEC && k === fieldIdx));
-    journeyCard.classList.toggle('active', vSec === JSEC);
-    jrNodes.forEach(el => el.classList.toggle('active', vSec === JSEC));
+    journeyCard.classList.toggle('active', vSec === JSEC && !zoomed);
+    jnCards.forEach((c, k) => c.classList.toggle('active', vSec === JSEC && zoomed && k === planetIdx));
     contactBlock.classList.toggle('active', vSec === CSEC);
     heroCopy.classList.toggle('inactive', vSec !== 0);
     pes.classList.toggle('inactive', vSec !== 0);
-    dock.classList.toggle('on', vSec === FSEC);
+    fdock.classList.toggle('on', vSec === FSEC);
+    pdock.classList.toggle('on', vSec === JSEC && zoomed);
     dockBtns.forEach((b, k) => b.classList.toggle('on', k === fieldIdx));
-    tlSubs.forEach((b, j) => b.classList.toggle('on', j === fieldIdx));
+    pdockBtns.forEach((b, k) => b.classList.toggle('on', k === planetIdx));
+    fieldSubs.forEach((b, j) => b.classList.toggle('on', j === fieldIdx));
+    planetSubs.forEach((b, j) => b.classList.toggle('on', j === planetIdx));
     // the fan: ticks recede with distance from where you are.
     tlSecs.forEach((el, k) => {
       const d = Math.abs(k - vSec), t = el.querySelector('.tl-tick');
@@ -543,12 +654,13 @@ try {
     vSec = i;
     // Inside MACHINES the morph owns λ (scene3d holds the release), so there is nothing to
     // retarget — and a retarget there would queue a pending word swap that fires later, once
-    // the hold is handed back. Coming back UP from the journey the page is the one holding λ,
-    // so hand it to the morph again — but NOT when entering from the fields, where the
-    // boundary at 2H is exactly where tMorph is 0 and the morph would refuse to hold.
-    // CONTACT is a release with no re-ramp: the constellation disperses into stardust.
+    // the hold is handed back — but NOT when entering from the fields, where the boundary at
+    // 2H is exactly where tMorph is 0 and the morph would refuse to hold.
+    // JOURNEY and CONTACT are releases with no re-ramp: the beads shrink out and the planets
+    // take the stage. scene3d keeps the hold on for as long as t4 > 0, so this is belt-and-
+    // braces for a page that deep-links straight into either one.
     if (i === MSEC) { if (mAt() > 0.002) PHY.holdRelease(true); }
-    else if (i === CSEC) PHY.holdRelease(true);
+    else if (i === JSEC || i === CSEC) PHY.holdRelease(true);
     else { PHY.holdRelease(false); PHY.retarget(ptsFor()); }
     render();
   }
@@ -561,11 +673,22 @@ try {
     render();
   }
 
+  // the horizontal axis of the journey. scene3d eases its focus toward it, so the camera
+  // CRUISES along the constellation line to the next planet instead of cutting.
+  function setPlanet(j) {
+    j = clamp(j, jnCards.length - 1);
+    if (j === planetIdx) return;
+    planetIdx = j;
+    hero.setPlanet(j);
+    render();
+  }
+
   // under qaSec the window must stay at scrollY 0, so jump the state instead of scrolling
-  function goSec(i) {
+  function goSec(i, sub) {
     i = clamp(i, LAST);
     if (qaSec !== null) { qaSec = i; setSection(i); return; }
-    scrollTo({ top: SECTIONS[i].at * innerHeight, behavior: 'smooth' });
+    const to = sub && SECTIONS[i].subAt !== undefined ? SECTIONS[i].subAt : SECTIONS[i].at;
+    scrollTo({ top: to * innerHeight, behavior: 'smooth' });
   }
 
   render();
@@ -580,23 +703,34 @@ try {
     scrub();                      // after setSection: the field re-forms on the frame tMorph hits 0
   })();
 
-  dock.addEventListener('click', e => {
+  fdock.addEventListener('click', e => {
     const b = e.target.closest('button');
     if (b) setField(+b.dataset.k);
+  });
+  pdock.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (b) setPlanet(+b.dataset.k);
   });
 
   tl.addEventListener('click', e => {
     const sec = e.target.closest('.tl-sec');
     if (!sec) return;
-    const sub = e.target.closest('.tl-sub');
-    if (sub) { goSec(+sec.dataset.k); setField(+sub.dataset.j); }
-    else if (e.target.closest('.tl-tick')) goSec(+sec.dataset.k);
+    const k = +sec.dataset.k, sub = e.target.closest('.tl-sub');
+    if (sub) {
+      goSec(k, true);
+      if (k === FSEC) setField(+sub.dataset.j);
+      else if (k === JSEC) setPlanet(+sub.dataset.j);
+    } else if (e.target.closest('.tl-tick')) goSec(k);
   });
 
+  // the ONE horizontal axis, wherever you are: the fields, or the zoomed journey.
+  const hSec = () => (vSec === FSEC ? FSEC : vSec === JSEC && zoomed ? JSEC : 0);
+  const hStep = d => { const h = hSec(); if (h === FSEC) setField(fieldIdx + d); else if (h) setPlanet(planetIdx + d); };
+
   addEventListener('keydown', e => {
-    if (vSec !== FSEC) return;
-    if (e.key === 'ArrowRight') setField(fieldIdx + 1);
-    else if (e.key === 'ArrowLeft') setField(fieldIdx - 1);
+    if (!hSec()) return;
+    if (e.key === 'ArrowRight') hStep(1);
+    else if (e.key === 'ArrowLeft') hStep(-1);
   });
 
   // horizontal trackpad. passive: vertical wheel is never intercepted, it just scrolls.
@@ -605,10 +739,10 @@ try {
     const now = performance.now();
     if (now - wheelT > 200) dx = 0;          // new gesture, not a slow drift
     wheelT = now;
-    if (vSec !== FSEC || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) { dx = 0; return; }
+    if (!hSec() || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) { dx = 0; return; }
     dx += e.deltaX;
     if (Math.abs(dx) > 120 && now - switchT > 500) {
-      setField(fieldIdx + Math.sign(dx));
+      hStep(Math.sign(dx));
       dx = 0; switchT = now;
     }
   }, { passive: true });
@@ -621,14 +755,17 @@ try {
   let rt = 0;
   addEventListener('resize', () => {
     clearTimeout(rt);
-    rt = setTimeout(() => { if (vSec === FSEC || vSec === JSEC) PHY.retarget(ptsFor()); }, 260);
+    rt = setTimeout(() => { if (vSec === FSEC) PHY.retarget(ptsFor()); }, 260);
   });
 
   // QA hook: rAF is suspended in hidden tabs, so tick() never runs there — advance() pulls
   // the scroll position in itself, section(i) jumps to a major section and field(j) to a field.
   //   __hero.section(1); __hero.field(2); __hero.advance(4)
   //   __hero.section(2); __hero.arm(0.9); __hero.advance(2); __hero.boardStats()
-  //   __hero.section(3); __hero.advance(3)          // the machine put away, the constellation up
+  //   __hero.section(3); __hero.advance(3)          // the machine put away, zoomed on UT Austin
+  //   __hero.journey(0.3); __hero.advance(1)        // the overview, forming
+  //   __hero.planet(0); __hero.advance(1)           // cruise back down the line to USTC
+  //   __hero.section(4); __hero.advance(2)          // the finale: ring up, planets receding
   //   __hero.exit(0.5); __hero.advance(1)           // mid-exit: the board is half handed back
   const adv = __hero.advance;
   __hero.advance = t => {
@@ -643,12 +780,18 @@ try {
     qMorph = qaSec >= MSEC ? 1 : 0;    // section(2) = the board, materialized and not yet docked
     qArm = done ? 1 : 0;
     qExit = done ? 1 : 0;
+    qJour = done ? 1 : 0;         // section(3) = ZOOMED, not the overview; section(4) keeps it
+    qFin = qaSec === CSEC ? 1 : 0;
+    if (qaSec === JSEC) setPlanet(3);   // …on UT Austin, the one with the CV on it
     scrub();
   };
   __hero.field = j => setField(j);
+  __hero.planet = j => setPlanet(j);
   __hero.morph = v => { qMorph = c01(+v); scrub(); };   // pinned against the scroll driver, like qaSec
   __hero.arm = v => { qArm = c01(+v); scrub(); };
   __hero.exit = v => { qExit = c01(+v); scrub(); };
+  __hero.journey = v => { qJour = c01(+v); scrub(); };
+  __hero.finale = v => { qFin = c01(+v); scrub(); };
 } catch (e) {
   fallback(e);
 }

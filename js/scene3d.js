@@ -222,9 +222,10 @@ export function createHero(canvas, opts = {}) {
   // physics (x, y) -> CSS px inside the canvas. The sheet is tilted, the camera dollies and
   // parallaxes, so anything in the DOM that has to sit ON a bead (the journey labels) must
   // ask for the real projection — a viewport percentage lands next to the wrong star.
+  // n = the n̂ offset to project at; omitted, it is the one a bead rides at.
   const pj3 = new Float32Array(3), pjv = new THREE.Vector3();
-  function project(x, y) {
-    sheetXYZ(x, y, heightAt(x, y) * 0.35 + BEAD_R, pj3, 0);   // same n̂ offset a bead rides at
+  function project(x, y, n) {
+    sheetXYZ(x, y, n === undefined ? heightAt(x, y) * 0.35 + BEAD_R : n, pj3, 0);
     pjv.set(pj3[0], pj3[1], pj3[2]).project(camera);
     return [(pjv.x * 0.5 + 0.5) * W, (0.5 - pjv.y * 0.5) * H];
   }
@@ -712,28 +713,35 @@ export function createHero(canvas, opts = {}) {
 
   function updateMorph() {
     const t = morphT;
-    // stage 1 — hand λ to the morph and keep it down for as long as the morph is running…
-    // …but NOT once the exit has run to the end: there the page takes λ back for the
-    // constellation while morphT is still pinned at 1. Without the `exitT < 1` half, a page
-    // that BOOTS inside the journey (a reload, a deep link) would have the morph steal λ on
-    // its very first setMorph and never give it back — the beads would sit as dead gas.
-    const want = t > 0.002 && exitT < 1;
+    // stage 1 — hand λ to the morph and keep it down for as long as the morph is running,
+    // and for the whole journey on top of it: the constellation is PLANETS now, so the beads
+    // never re-crystallise after the exit — they simply hand the stage over. λ comes back
+    // only when the morph is scrubbed all the way out (the page retargets the fields there).
+    const want = t > 0.002 || jourT > 0;
     if (want !== held) { held = want; PHY.holdRelease(want); }
     // the EXIT stage (see setExit) undoes the morph on top of it: `inv` is 1 while the
     // machine story is on screen and 0 once it has been handed back to the fabric.
     const inv = 1 - ss(exitT);
-    beadScale = 1 - 0.55 * stg(t, 0.05, 0.5) * inv;   // released beads recede to a dim gas
+    // …and the journey takes it from there: the fabric AND the beads bow out multiplicatively
+    // (a multiplier, so it composes with the exit's restore instead of fighting it).
+    const jh = ss(jourT / 0.45 < 1 ? jourT / 0.45 : 1);
+    beadScale = (1 - 0.55 * stg(t, 0.05, 0.5) * inv) * (1 - jh);
     dollyM = 1 + (DOLLY - 1) * stg(t, 0.85, 1);
     updateArm();                                  // the arm stage extends this frame's camera + board transform
 
-    if (!board) { pulseOn = false; return; }
+    if (!board) {                                 // fail-soft path still owes the journey its fade
+      fabMat.opacity = 1 - jh;
+      fabric.visible = fabMat.opacity > 0.004;
+      pulseOn = false;
+      return;
+    }
 
     // stage 2 — the fabric hands its lines over to the copper
     const s2 = stg(t, 0.25, 0.6), s3 = stg(t, 0.6, 0.85), s4 = stg(t, 0.8, 0.97);
     const dim = 1 - (1 - LINE_DIM) * s4;          // lines step back once the photo lands
     // …and the exit hands them BACK. A multiplier cannot lift an opacity the morph drove to
     // 0, so the fabric's own term is a lerp toward 1; every board layer is multiplicative.
-    fabMat.opacity = 1 - s2 * inv;
+    fabMat.opacity = (1 - s2 * inv) * (1 - jh);
     fabric.visible = fabMat.opacity > 0.004;
 
     traceMat.opacity = stg(t, 0.25, 0.36) * dim * inv;
@@ -839,7 +847,8 @@ export function createHero(canvas, opts = {}) {
     const t = armT, a = ss(t), inv = 1 - ss(exitT);
     // the exit walks the whole camera move back to 1×: the constellation has to read on the
     // sheet at hero framing, and the DOM labels project against this same camera.
-    dolly = 1 + (dollyM + (DOLLY2 - DOLLY) * a - 1) * inv;
+    // …and the finale pulls the whole thing far back on top of that (chapter ⑤)
+    dolly = (1 + (dollyM + (DOLLY2 - DOLLY) * a - 1) * inv) * (1 + (FIN_DOLLY - 1) * ss(finT));
     look.x = ARM_X * W * LOOK_DRIFT * a * inv;
     armMat.opacity = ARM_OP * stg(t, 0, 0.5) * inv;
     if (arm) arm.visible = armMat.opacity > 0.004;
@@ -851,6 +860,7 @@ export function createHero(canvas, opts = {}) {
       ((ARM_Y + DOCK_Y) * H - sc * bC[1]) * u,
       ((ARM_Z + DOCK_Z) * H - sc * bC[2]) * u,
     );
+    updateJourney();          // the planets and the ring are placed against this frame's dolly
   }
 
   // t2 ∈ [0, 1], scrub-safe both ways. The edge dump is fetched lazily on the first t2 > 0.
@@ -869,6 +879,185 @@ export function createHero(canvas, opts = {}) {
   function setExit(t) {
     exitT = t > 0 ? (t < 1 ? t : 1) : 0;
     updateMorph();               // -> updateArm(): every opacity and the camera are re-derived
+  }
+
+  // ------------------------------------------------------------ chapter ④ — the planets
+  // The constellation is not a bead swarm any more: one node = one PLANET, textured with the
+  // school's crest on a 1024×512 equirect (crest at 0° and 180°, so the slow spin always
+  // brings a face round). Thin lines wire them together like the Big Dipper.
+  //
+  //   setJourney(t4)  .00 → .45  OVERVIEW: planets scale in (staggered), the lines draw
+  //                              themselves, the fabric and the beads hand the stage over.
+  //                   .45 → 1    ZOOM: the focused planet swells to ~0.55H of SCREEN height
+  //                              and glides to a left-of-centre anchor (the detail card owns
+  //                              the right); the others recede, dim and unwire.
+  //   setPlanet(i)    switches while zoomed. focusF *eases* toward i, so the view cruises
+  //                   along the constellation line planet-to-planet instead of cutting.
+  //   setFinale(t5)   camera pulls far back, the planets unwind and shrink to star-points
+  //                   drifting up-right, and one orbit ring comes up around the contact block.
+  //
+  // Same contract as setMorph/setArm/setExit: pure functions of (t4, focusF, t5), so scrubbing
+  // back undoes every stage exactly.
+  //   [name, x·W, y·H, n̂ offset ·H (depth stagger), texture, radius multiplier]
+  const PLANETS = [
+    ['USTC',      0.22, 0.55,  0.04, 'image/planet-ustc.jpg',     1],
+    ['BERKELEY',  0.40, 0.46, -0.04, 'image/planet-berkeley.jpg', 1],
+    ['BROWN',     0.58, 0.40,  0.03, 'image/planet-brown.jpg',    1],
+    ['UT AUSTIN', 0.78, 0.30, -0.03, 'image/planet-utaustin.jpg', 1.25],
+  ];
+  const PL_R = 0.035;         // base planet radius in the overview [·H world]
+  const PL_ZOOM_H = 0.55;     // focused planet diameter, as a fraction of the SCREEN height
+  const PL_ANCHOR_X = -0.16;  // …parked left of centre [·W world]
+  const PL_DIM = 0.25;        // unfocused planets' opacity multiplier once zoomed
+  const PL_SHRINK = 0.8;      // …and their scale multiplier
+  const PL_SPIN = 0.12;       // rad/s
+  // Two knobs that only exist because of the bloom pass (threshold 0.72, LINEAR): a white
+  // crest under the 2.0 key light lands at ~0.8 and blows out into an unreadable disc.
+  // PL_TINT pulls the albedo down under the threshold, PL_EMIT puts the near-black navy
+  // plate back on the terminator side. Raise PL_EMIT past ~0.35 and the crest blooms again.
+  const PL_TINT = 0xb9c1c4;
+  const PL_EMIT = 0.12;
+  const FIN_DOLLY = 2.4;      // camera distance multiplier at t5 = 1
+  const RING_R = 0.42;        // orbit ring semi-major axis [·H world], scaled with the dolly
+  const RING_RY = 0.66;       // …minor/major axis: an ellipse, so its slow spin is visible
+  const RING_TILT = 18 * Math.PI / 180;
+  const RING_SPIN = 0.06;     // rad/s
+
+  let planets = null, jourT = 0, finT = 0, planetIdx = 0, focusF = 0;
+  const journeyGrp = new THREE.Group();
+  journeyGrp.visible = false;
+  scene.add(journeyGrp);
+
+  const planetGeo = new THREE.SphereGeometry(1, 48, 32);   // unit sphere; radius IS the scale
+  const linkGeo = new THREE.BufferGeometry();
+  linkGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array((PLANETS.length - 1) * 6), 3));
+  linkGeo.attributes.position.setUsage(THREE.DynamicDrawUsage);
+  const linkMat = new THREE.LineBasicMaterial({
+    color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const links = new THREE.LineSegments(linkGeo, linkMat);
+  links.frustumCulled = false;
+  journeyGrp.add(links);
+
+  // The outro's one flourish. It is pinned to the LOOK point and scaled with the dolly, so it
+  // stays a constant halo around the (screen-centred) contact block while the camera pulls
+  // away from everything else — a world-fixed ring would just shrink out of the composition.
+  const ringMat = new THREE.LineBasicMaterial({
+    color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const ringGeo = new THREE.BufferGeometry();
+  {
+    const n = 160, p = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const a = i / n * Math.PI * 2;
+      p[i * 3] = Math.cos(a); p[i * 3 + 1] = RING_RY * Math.sin(a);
+    }
+    ringGeo.setAttribute('position', new THREE.BufferAttribute(p, 3));
+  }
+  const ring = new THREE.LineLoop(ringGeo, ringMat);
+  ring.rotation.x = RING_TILT;
+  ring.frustumCulled = false;
+  ring.visible = false;
+  scene.add(ring);
+
+  function buildPlanets() {
+    if (planets) return;
+    const loader = new THREE.TextureLoader();
+    planets = PLANETS.map(([name, , , , url]) => {
+      const mat = new THREE.MeshStandardMaterial({
+        roughness: 0.65, metalness: 0, transparent: true, opacity: 0,
+        color: PL_TINT, emissive: 0xffffff, emissiveIntensity: PL_EMIT,
+      });
+      // fail soft: a missing crest leaves a plain gray planet, never a black hole
+      const tex = loader.load(url, undefined, undefined, () => {
+        console.warn('journey: planet texture missing —', url);
+        mat.map = mat.emissiveMap = null;
+        mat.color.set(0x6b7376); mat.emissive.set(0x14181a);
+        mat.needsUpdate = true;
+      });
+      tex.colorSpace = THREE.SRGBColorSpace;
+      mat.map = mat.emissiveMap = tex;
+      const m = new THREE.Mesh(planetGeo, mat);
+      m.name = name;
+      // the crests sit at u = 0 and u = 0.5; three's sphere puts u = 0.25 at the camera, i.e.
+      // exactly BETWEEN them — so start a quarter turn round and a face is up from frame one.
+      m.rotation.y = Math.PI / 2;
+      m.frustumCulled = false;
+      journeyGrp.add(m);
+      return m;
+    });
+    updateJourney();
+  }
+
+  const jp = new THREE.Vector3(), ja = new THREE.Vector3();
+  const jxyz = new Float32Array(3);
+
+  function updateJourney() {
+    const t = jourT, fin = ss(finT);
+    ringMat.opacity = 0.18 * fin;
+    ring.visible = ringMat.opacity > 0.004;
+    if (ring.visible) {
+      ring.position.set(look.x, look.y, 0);
+      ring.scale.set(RING_R * H * dolly, RING_R * H * dolly, 1);
+    }
+    if (!planets) { journeyGrp.visible = false; return; }
+
+    const zoom = stg(t, 0.45, 1);
+    const camY = look.y + (baseY - look.y) * dolly, camD = camZ * dolly;
+    const lp = linkGeo.attributes.position.array;
+    for (let i = 0; i < planets.length; i++) {
+      const [, fx, fy, nOff, , rm] = PLANETS[i];
+      const born = stg(t, i * 0.07, i * 0.07 + 0.24);        // staggered forming
+      // 1 on the focused planet, ramping to 0 one node away: a fractional focusF therefore
+      // has TWO planets half-grown and half-anchored — that is the cruise between them.
+      const foc = Math.max(0, 1 - Math.abs(i - focusF));
+      const k = zoom * foc * (1 - fin), away = zoom * (1 - foc) * (1 - fin);
+
+      sheetXYZ(fx * W, fy * H, nOff * H, jxyz, 0);
+      jp.set(jxyz[0], jxyz[1], jxyz[2]);
+      ja.set(PL_ANCHOR_X * W, jxyz[1], jxyz[2]);             // its own sheet-frame height
+      jp.lerp(ja, k);
+      jp.x += 0.30 * W * fin; jp.y += 0.26 * H * fin;        // the finale flings them up-right
+
+      // solve the frustum at this planet's own distance, so PL_ZOOM_H means the same
+      // fraction of the screen on any viewport and at any dolly
+      const d = Math.hypot(jp.x, jp.y - camY, jp.z - camD);
+      const rZoom = PL_ZOOM_H * d * Math.tan(FOV * Math.PI / 360);
+      const rBase = PL_R * H * rm * born * (1 - (1 - PL_SHRINK) * away);
+      const r = (rBase + (rZoom - rBase) * k) * (1 - 0.80 * fin);
+
+      planets[i].position.copy(jp);
+      planets[i].scale.setScalar(r > 1e-4 ? r : 1e-4);
+      const m = planets[i].material;
+      m.opacity = born * (1 - (1 - PL_DIM) * away) * (1 - 0.45 * fin);
+      planets[i].visible = m.opacity > 0.004;
+
+      if (i > 0) { const o = (i - 1) * 6; lp[o + 3] = jp.x; lp[o + 4] = jp.y; lp[o + 5] = jp.z; }
+      if (i < planets.length - 1) { const o = i * 6; lp[o] = jp.x; lp[o + 1] = jp.y; lp[o + 2] = jp.z; }
+    }
+    linkGeo.attributes.position.needsUpdate = true;
+    linkMat.opacity = 0.45 * stg(t, 0.18, 0.45) * (1 - 0.75 * zoom) * (1 - fin);
+    links.visible = linkMat.opacity > 0.004;
+    journeyGrp.visible = t > 0.001;
+  }
+
+  // t4 ∈ [0, 1], scrub-safe. The four textures are fetched lazily on the first t4 > 0.
+  function setJourney(t) {
+    jourT = t > 0 ? (t < 1 ? t : 1) : 0;
+    if (jourT > 0) buildPlanets();
+    updateMorph();               // -> updateArm() -> updateJourney(): fabric, beads, planets
+  }
+
+  // which planet the zoom is on. focusF eases toward it in the rAF loop (snapped in advance).
+  function setPlanet(i) {
+    i = Math.round(+i) || 0;
+    planetIdx = i < 0 ? 0 : i > PLANETS.length - 1 ? PLANETS.length - 1 : i;
+  }
+
+  // t5 ∈ [0, 1], scrub-safe. Runs ON TOP of t4 = 1, the same way the exit runs on the morph.
+  function setFinale(t) {
+    finT = t > 0 ? (t < 1 ? t : 1) : 0;
+    updateMorph();
   }
 
   // ------------------------------------------------------------ post
@@ -987,6 +1176,9 @@ export function createHero(canvas, opts = {}) {
   function drawFrame(dt) {
     updateLaser(dt);
     if (pulseOn) advancePulses(dt);
+    // the spin lives here, not in frame(), so the synchronous advance() shows it turning too
+    if (journeyGrp.visible) for (const p of planets) p.rotation.y += PL_SPIN * dt;
+    if (ring.visible) ring.rotation.z += RING_SPIN * dt;
     placeBeads(meshMain, idxMain);
     placeBeads(meshTrac, idxTrac);
     composer.render();
@@ -1000,6 +1192,12 @@ export function createHero(canvas, opts = {}) {
     while (acc >= C.dt) { PHY.step(C.dt); acc -= C.dt; }
 
     stars.rotation.y += 0.0015 * dt;
+    // the planet-to-planet cruise: one lerped focus var, dt-exact like the laser's glide
+    if (jourT > 0 && focusF !== planetIdx) {
+      focusF += (planetIdx - focusF) * (1 - Math.pow(0.94, dt * 60));
+      if (Math.abs(planetIdx - focusF) < 1e-3) focusF = planetIdx;
+      updateJourney();
+    }
     trackCamera(0.05);
 
     updateFabric();
@@ -1020,6 +1218,7 @@ export function createHero(canvas, opts = {}) {
     advance(seconds) {
       const n = Math.max(1, Math.round(seconds / C.dt));
       for (let i = 0; i < n; i++) { PHY.step(C.dt); updateFabric(); }
+      focusF = planetIdx;     // the cruise is a rAF lerp, so the sync path snaps it
       updateMorph();          // the morph is a visual, so it must run on the sync path too
       trackCamera(1);
       drawFrame(n * C.dt);
@@ -1032,10 +1231,20 @@ export function createHero(canvas, opts = {}) {
     setMorph,
     setArm,
     setExit,
+    setJourney,
+    setPlanet,
+    setFinale,
     project,
     // everything the morph can get wrong, in one readable object
     boardStats() {
-      if (!board) return { board: null, failed: boardFail, pending: boardBusy, t: morphT, t3: exitT };
+      const jrn = {
+        t4: jourT, t5: finT, planetIdx, focusLerp: +focusF.toFixed(3),
+        planetLoaded: planets ? planets.filter(p => p.material.map && p.material.map.image).length : 0,
+        planetOpacity: planets ? planets.map(p => +p.material.opacity.toFixed(3)) : null,
+        planetR: planets ? planets.map(p => Math.round(p.scale.x)) : null,
+        linkOpacity: +linkMat.opacity.toFixed(3), ringOpacity: +ringMat.opacity.toFixed(3),
+      };
+      if (!board) return { board: null, failed: boardFail, pending: boardBusy, t: morphT, t3: exitT, ...jrn };
       let mn = Infinity, mx = 0, len = 0, bad = 0;
       for (let k = 0; k < NT; k++) {
         const o = k * 4;
@@ -1059,6 +1268,7 @@ export function createHero(canvas, opts = {}) {
         armOpacity: +armMat.opacity.toFixed(3), armSegs: armGeo ? armGeo.attributes.position.count / 2 : 0,
         boardScale: +boardGrp.scale.x.toFixed(3),
         boardPos: [boardGrp.position.x, boardGrp.position.y, boardGrp.position.z].map(v => Math.round(v)),
+        ...jrn,
       };
     },
   };
@@ -1080,7 +1290,13 @@ export function createHero(canvas, opts = {}) {
     setMorph,
     setArm,
     setExit,
+    setJourney,
+    setPlanet,
+    setFinale,
     project,
+    // the one table the journey is authored in — the page pins its overview labels to it,
+    // so a label can never drift off its own planet: [name, x·W, y·H, n̂ offset ·H]
+    nodes: PLANETS.map(([n, x, y, z]) => [n, x, y, z]),
     dispose() {
       cancelAnimationFrame(raf);
       clearTimeout(rt);
@@ -1098,6 +1314,8 @@ export function createHero(canvas, opts = {}) {
       if (photoMat.map) photoMat.map.dispose();
       photoMat.dispose();
       for (const sp of silkGrp.children) { sp.material.map.dispose(); sp.material.dispose(); }
+      planetGeo.dispose(); linkGeo.dispose(); linkMat.dispose(); ringGeo.dispose(); ringMat.dispose();
+      if (planets) for (const p of planets) { if (p.material.map) p.material.map.dispose(); p.material.dispose(); }
       fabMat.dispose(); starMat.dispose(); glassMat.dispose(); tracMat.dispose();
       beamMat.dispose(); glowMat.dispose(); coreMat.dispose();
       beamTex.dispose(); glowTex.dispose();
