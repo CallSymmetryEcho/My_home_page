@@ -71,6 +71,7 @@ hero3d-prototype.html Step1 交付物
 - [x] ③b+③c 大整合：主页 MACHINES 段（310vh，morph + SCARA 对接终幕）、`02 — MACHINES` 刻度、板身偏移修重叠、皮带轮过曝修复（NormalBlending）、机械臂立正（资产 v2 垂直翻转）
 - [x] ④ Journey 星座 v1（珠群版）+ Contact 尾声 → **Bin 复审推翻两次**：v2 校徽行星（贴图已做）→ 也毙，**定稿 v3「北极星」**：四颗衍射星芒 sprite（高斯核+十字长芒+45°短芒+光晕，canvas 生成零贴图）、星等分级（UT 最亮）、微呼吸闪烁；缩进 = 星图收束到一颗星；**校徽改为白色单色版放右侧详情卡**；缩进编排/巡游 dock/右卡/CV 按钮/Contact 纪念碑+轨道环骨架沿用 v2
 - 弃用资产：image/planet-*.jpg（行星贴图，留档不引用）
+- [x] ④v3 落地：北极星星芒 sprite（512px 单纹理、缘部归零的移位高斯星芒）、星等分级、0.4Hz 呼吸；白徽入右卡（crest-*-mono.png）；巡游/CV/纪念碑+轨道环全链验证（无头 Chrome 管线，扩展断连期的替代 QA 通道）→ 待 Bin 实机终审
 - [ ] ⑤ Toolbox ⑥ Awards+Teaching 排布评估（规格类内容并进 MACHINES 卡或 Contact 前小节）
 - 待 Bin 的观感裁决：星座旁 ~139 颗氛围星云珠（保留=深空感 / 削减=更聚焦）；journey 标签在 <800×470 视口与卡片重叠（归入响应式专项）
 - [ ] ⑦ 收尾：LATTICE/WIRES 模式循环、配色精修（必做）、移动端/性能/a11y
