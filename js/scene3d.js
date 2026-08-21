@@ -32,6 +32,28 @@ const BEAD_R = 2.6;                       // bead geometry radius [world units]
 const FADE0 = 0.45;                       // sheet edge fade starts at this normalised radius
 const C = PHY.CONFIG;
 
+// ------------------------------------------------------------ quality tiers
+// ONE resolve, ONE table. Everything that differs between a desktop GPU and a phone is a
+// field of Q — there is no second place a tier decision may be made. `?tier=lite|high`
+// overrides the probe, for testing either tier on any machine.
+//   glass      MeshPhysicalMaterial transmission renders the whole scene a SECOND time.
+//              That single flag is the biggest fill-rate item on the page.
+//   bloomRes   scale applied to what EffectComposer hands UnrealBloomPass (see below).
+//   fabStride  draw every Nth lattice line — the potential keeps its full resolution.
+const TIER = (() => {
+  const q = new URLSearchParams(location.search).get('tier');
+  return q === 'lite' || q === 'high' ? q
+    : (matchMedia('(pointer: coarse)').matches || innerWidth < 900
+      || (navigator.deviceMemory && navigator.deviceMemory <= 4)) ? 'lite' : 'high';
+})();
+const Q = TIER === 'lite' ? {
+  tier: 'lite', beads: 360, glass: false, beadCol: 0x9fb4b8, envI: 2.6, seg: [14, 10],
+  msaa: 0, bloomRes: 0.5, bloomK: 0.9, dpr: 1.5, stars: 650, fabStride: 3,
+} : {
+  tier: 'high', beads: C.N, glass: true, beadCol: 0xf2feff, envI: 3.2, seg: [24, 16],
+  msaa: 4, bloomRes: 0.5, bloomK: 1.0, dpr: 2, stars: 1300, fabStride: 2,
+};
+
 // opts (all optional, all for the board morph — see setMorph):
 //   board     already-parsed board JSON; skips the fetch entirely
 //   boardUrl  where to fetch it from instead (default './js/data/board-hswb.json')
@@ -46,12 +68,12 @@ export function createHero(canvas, opts = {}) {
   } catch (e) {
     throw new Error('WebGL2 unavailable: ' + (e && e.message));
   }
-  renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+  renderer.setPixelRatio(Math.min(Q.dpr, devicePixelRatio || 1));
   renderer.setSize(W, H, false);
   renderer.setClearColor(0x000004, 1);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
 
-  PHY.init(W, H, GW, GH);
+  PHY.init(W, H, GW, GH, Q.beads);   // …which rewrites C.N to the tier's count
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(FOV, W / H, 1, 40000);
@@ -85,7 +107,7 @@ export function createHero(canvas, opts = {}) {
   scene.add(key, glint);
 
   // ------------------------------------------------------------ starfield
-  const STARS = 1300;
+  const STARS = Q.stars;
   const starGeo = new THREE.BufferGeometry();
   {
     const pos = new Float32Array(STARS * 3), col = new Float32Array(STARS * 3);
@@ -116,11 +138,11 @@ export function createHero(canvas, opts = {}) {
   fabGeo.attributes.position.setUsage(THREE.DynamicDrawUsage);
   fabGeo.attributes.color.setUsage(THREE.DynamicDrawUsage);
   {
-    // draw every 2nd lattice line: big sparse GR cells, while the potential keeps the
+    // draw every Nth lattice line: big sparse GR cells, while the potential keeps the
     // full lattice resolution so each drawn line still bends smoothly through the wells
-    const ix = [];
-    for (let j = 0; j < GH; j += 2) for (let i = 0; i < GW - 1; i++) { ix.push(j * GW + i, j * GW + i + 1); }
-    for (let i = 0; i < GW; i += 2) for (let j = 0; j < GH - 1; j++) { ix.push(j * GW + i, (j + 1) * GW + i); }
+    const st = Q.fabStride, ix = [];
+    for (let j = 0; j < GH; j += st) for (let i = 0; i < GW - 1; i++) { ix.push(j * GW + i, j * GW + i + 1); }
+    for (let i = 0; i < GW; i += st) for (let j = 0; j < GH - 1; j++) { ix.push(j * GW + i, (j + 1) * GW + i); }
     fabGeo.setIndex(new THREE.BufferAttribute(new Uint16Array(ix), 1));
   }
   const fabMat = new THREE.LineBasicMaterial({
@@ -171,7 +193,17 @@ export function createHero(canvas, opts = {}) {
     }
   }
 
+  // …and once the sheet has faded out entirely (the board materialized, the journey, the
+  // writing, the outro) nothing on screen reads any of it, so the whole 7.4k-vertex pass —
+  // potential, dents and all — is skipped. hgt goes stale while it is off; the first frame
+  // back SNAPS the ease (rate 1 instead of 0.12) so a scrub back in is exact rather than
+  // thirty frames behind. `fabric.visible` is written by updateMorph, one frame ahead.
+  let fabStale = false;
+
   function updateFabric() {
+    if (!fabric.visible) { fabStale = true; return; }
+    const rate = fabStale ? 1 : 0.12;
+    fabStale = false;
     PHY.fillPotential(vbuf);
     splatDents();
     const lam = PHY.getLambda();
@@ -203,7 +235,7 @@ export function createHero(canvas, opts = {}) {
               + dent[k];
         if (e > cl) e = cl;
         // ease, so λ steps and mode switches grow the wells instead of popping
-        const h = hgt[k] += (-relief * e - hgt[k]) * 0.12;
+        const h = hgt[k] += (-relief * e - hgt[k]) * rate;
         p[k * 3 + 1] = rowY + h * COSP;    // displace along n̂ = (0, cosφ, sinφ)
         p[k * 3 + 2] = rowZ + h * SINP;
 
@@ -254,14 +286,22 @@ export function createHero(canvas, opts = {}) {
   const scl = new Float32Array(N);
   for (let i = 0; i < N; i++) scl[i] = 0.85 + Math.random() * 0.30;
 
-  const beadGeo = new THREE.SphereGeometry(BEAD_R, 24, 16);
+  const beadGeo = new THREE.SphereGeometry(BEAD_R, Q.seg[0], Q.seg[1]);
   // transmission is capped (on black it transmits black) and carried by clearcoat + env:
   // sparkling droplets that catch the bloom, not matte marbles. The thinner wall at 0.72
   // reads as glass rather than resin — push transmission much past this and they go invisible.
+  // LITE: transmission off. Three renders the ENTIRE scene a second time into a transmission
+  // target for it, which is a phone's whole frame budget; a hair of alpha plus the clearcoat
+  // and the env reflection keep the droplet read at one render pass.
   const glassMat = new THREE.MeshPhysicalMaterial({
-    metalness: 0, roughness: 0.04, transmission: 0.72, thickness: 2.5,
+    metalness: 0, roughness: 0.04,
+    transmission: Q.glass ? 0.72 : 0, thickness: 2.5,
+    transparent: !Q.glass, opacity: Q.glass ? 1 : 0.92,
     clearcoat: 1.0, clearcoatRoughness: 0.05,
-    ior: 1.45, color: 0xf2feff, envMapIntensity: 3.2,
+    // …and without transmission the beads stop transmitting black, so the tier that lost it
+    // takes the same brightness out of the albedo instead (transmission 0.72 replaces ~72% of
+    // the diffuse with the black behind it) — otherwise the word blows into one white slab.
+    ior: 1.45, color: Q.beadCol, envMapIntensity: Q.envI,
   });
   const tracMat = glassMat.clone();
   tracMat.color.set(0xffd9a0);
@@ -616,11 +656,12 @@ export function createHero(canvas, opts = {}) {
     bh = bs * (Math.abs(board.aspect * SR) + Math.abs(CR));
     bcx = W / 2; bcy = C.wordY * H;              // centred on the word band
 
-    // nearest DRAWN lattice line. The fabric draws every 2nd index (see the index build
-    // above), so the snap is to an EVEN row/column.
-    const jMax = (GH - 1) & ~1, iMax = (GW - 1) & ~1;
-    const rowJ = y => Math.max(0, Math.min(jMax, 2 * Math.round((y - g.y0) / g.dy / 2)));
-    const colI = x => Math.max(0, Math.min(iMax, 2 * Math.round((x - g.x0) / g.dx / 2)));
+    // nearest DRAWN lattice line. The fabric draws every Q.fabStride-th index (see the index
+    // build above), so the snap is to a multiple of it.
+    const st = Q.fabStride;
+    const jMax = (GH - 1) - ((GH - 1) % st), iMax = (GW - 1) - ((GW - 1) % st);
+    const rowJ = y => Math.max(0, Math.min(jMax, st * Math.round((y - g.y0) / g.dy / st)));
+    const colI = x => Math.max(0, Math.min(iMax, st * Math.round((x - g.x0) / g.dx / st)));
 
     srcRows = 0;
     for (let k = 0; k < NT; k++) {
@@ -1345,8 +1386,13 @@ export function createHero(canvas, opts = {}) {
   const composer = new EffectComposer(renderer);   // picks up the renderer's size + DPR
   // the canvas `antialias` flag does nothing once we render into composer targets, and
   // 1px additive lines crawl badly without MSAA — so ask the targets for it directly
-  composer.renderTarget1.samples = composer.renderTarget2.samples = 4;
-  const bloom = new UnrealBloomPass(new THREE.Vector2(W, H), 0.55, 0.3, 0.72);
+  composer.renderTarget1.samples = composer.renderTarget2.samples = Q.msaa;
+  const bloom = new UnrealBloomPass(new THREE.Vector2(W, H), 0.55 * Q.bloomK, 0.3, 0.72);
+  // …and the constructor's resolution is DEAD: addPass and composer.setSize both call
+  // pass.setSize(effectiveW, effectiveH), which overwrites it. Scaling the numbers on the way
+  // in is therefore the only bloom-resolution knob that survives a resize. Half-res costs the
+  // glow nothing (UnrealBloom halves again internally and blurs five mip levels on top).
+  bloom.setSize = (w, h) => UnrealBloomPass.prototype.setSize.call(bloom, w * Q.bloomRes, h * Q.bloomRes);
   const outPass = new OutputPass();
   composer.addPass(new RenderPass(scene, camera));
   composer.addPass(bloom);
@@ -1423,6 +1469,9 @@ export function createHero(canvas, opts = {}) {
     } else PHY.clearPointer();
   }
   const onLeave = () => { PHY.clearPointer(); ndc.set(0, 0); };
+  // touch has no pointerleave — a finger just lifts. Without this the trap stays pinned
+  // wherever the last touch ended and the swarm never lets go.
+  const onUp = e => { if (e.pointerType === 'touch') onLeave(); };
   const onClick = () => PHY.melt();
 
   // ------------------------------------------------------------ resize
@@ -1537,6 +1586,7 @@ export function createHero(canvas, opts = {}) {
     melt: () => PHY.melt(),
     mode: () => PHY.getMode(),
     lambda: () => PHY.getLambda(),
+    tier: () => Q.tier,
     setMorph,
     setBand,
     setArm,
@@ -1584,7 +1634,7 @@ export function createHero(canvas, opts = {}) {
         mx = Math.max(mx, Math.hypot(tSrc[o + 2] - tTgt[o + 2], tSrc[o + 3] - tTgt[o + 3]));
         len += Math.hypot(tTgt[o + 2] - tTgt[o], tTgt[o + 3] - tTgt[o + 1]);
         const j = srcLine[k], i = j >= 0 ? j : -1 - j;   // row j, or column encoded as -1-i
-        if (i % 2 || i >= (j >= 0 ? GH : GW)) bad++;     // must land on a DRAWN (even) line
+        if (i % Q.fabStride || i >= (j >= 0 ? GH : GW)) bad++;   // must land on a DRAWN line
       }
       return {
         board: board.name, traces: NT, badSource: bad, fromRows: srcRows, fromCols: NT - srcRows,
@@ -1614,6 +1664,8 @@ export function createHero(canvas, opts = {}) {
     raf = requestAnimationFrame(frame);
     addEventListener('pointermove', onMove);
     addEventListener('pointerleave', onLeave);
+    addEventListener('pointerup', onUp);
+    addEventListener('pointercancel', onUp);
     canvas.addEventListener('click', onClick);
     addEventListener('resize', onResize);
   }
@@ -1638,6 +1690,8 @@ export function createHero(canvas, opts = {}) {
       clearTimeout(rt);
       removeEventListener('pointermove', onMove);
       removeEventListener('pointerleave', onLeave);
+      removeEventListener('pointerup', onUp);
+      removeEventListener('pointercancel', onUp);
       removeEventListener('resize', onResize);
       canvas.removeEventListener('click', onClick);
       if (fpsEl) fpsEl.remove();

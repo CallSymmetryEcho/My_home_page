@@ -25,7 +25,11 @@
   /* The story is scroll HEIGHT only — every visible element is fixed, so nothing but the
      swarm moves. Panes are empty spacers; the cards inside them are position:fixed.
      Vertical scroll = MAJOR sections only. Content inside a section switches horizontally. */
-  .pane  { height: 100vh; }
+  /* every pane height is written twice: vh, then dvh over the top of it. On iOS the URL bar
+     makes vh a lie (it is the LARGE viewport, so the document ends up taller than the story)
+     while dvh tracks the visible one — which is what window.innerHeight, and therefore every
+     boundary in the script below, has been measuring all along. */
+  .pane  { height: 100vh; height: 100dvh; }
   /* MACHINES and JOURNEY are the two sections that scrub instead of switching: their height
      IS their scrub range.
      Panes: hero 1 + fields 1 + machines 4.6 + journey 2.2 + writing 1.1 + contact 0.6
@@ -38,10 +42,10 @@
        contact [9.2,9.5]
      (the one invariant is sum(panes) − 1 = C0 + CFIN, i.e. the page ends when the finale
       does — adding WRITING pushed C0 from 8.1 to 9.2 and the document from 9.4H to 10.5H.) */
-  .pane-tall { height: 460vh; }
-  .pane-journey { height: 220vh; }
-  .pane-writing { height: 110vh; }
-  .pane-contact { height: 60vh; }
+  .pane-tall { height: 460vh; height: 460dvh; }
+  .pane-journey { height: 220vh; height: 220dvh; }
+  .pane-writing { height: 110vh; height: 110dvh; }
+  .pane-contact { height: 60vh; height: 60dvh; }
 
   .nav {
     position: fixed; top: 0; left: 0; right: 0; height: 64px; z-index: 3;
@@ -174,7 +178,7 @@
   .sr-lab { font-family: var(--mono); font-size: 9px; letter-spacing: .12em; }
   .sr-lab.a { fill: var(--accent); }
   .sr-lab.d { fill: var(--text-dim); }
-  @media (max-width: 760px) { .field-card { bottom: 15vh; max-width: none; right: 20px; } }
+  /* small screens: see the one consolidated block at the end of this stylesheet */
   #journey-card .fc-body { margin-top: 14px; }
 
   /* the zoomed star's detail card: the SAME card, mirrored to the right edge, because the
@@ -206,7 +210,6 @@
     transition: background-color .3s ease, color .3s ease, border-color .3s ease;
   }
   .field-card a.jn-cv:hover { background: rgba(255,217,160,.12); border-color: rgba(255,217,160,.9); color: #fff1da; }
-  @media (max-width: 760px) { .jn-card { left: 20px; right: 20px; max-width: none; } }
 
   /* ---------------------------------------------------------------- chapter 03 — journey
      One label per star cluster. Each is pinned to its cluster's PROJECTED screen position
@@ -267,7 +270,6 @@
   }
   .wr-more:hover { opacity: 1; }
   @media (max-width: 900px) { .wr-grid { grid-template-columns: 1fr; } }
-  @media (max-width: 760px) { .wr { right: 20px; left: 20px; width: auto; } }
 
   /* ---------------------------------------------------------------- chapter 05 — contact
      The outro, and the one MONUMENTAL block on the page: everything else has stepped aside,
@@ -408,6 +410,52 @@
     letter-spacing: .06em; text-align: center; padding: 20px;
   }
   .fallback-note a { color: var(--accent); }
+
+  /* ---------------------------------------------------------------- small screens
+     Every phone rule lives here, in three steps, so there is one place to look:
+       ≤760  phone-shaped — cards become full-width bottom sheets, the timeline goes away
+             (the dock plus the scroll are the whole wayfinder there), the monument shrinks.
+       ≤560  the nav drops MACHINES: it is the one link the scroll story tells anyway.
+       ≤430  small phone — the docks compress so four boxes still fit on one line.
+     The .tl and .physics-panel display:none rules stay next to their own components. */
+  @media (max-width: 760px) {
+    /* the intro line is authored nowrap for the desktop composition; on a phone that is
+       simply wider than the screen, so it becomes a normal three-line block */
+    .hero-copy { left: 16px; right: 16px; transform: none; white-space: normal; padding: 20px 18px; }
+    .tagline { max-width: none; }
+    .hint { margin-top: 18px; line-height: 1.6; }
+    .field-card {
+      left: 16px; right: 16px; max-width: none; bottom: 12vh;
+      padding: 16px 18px;
+      background: radial-gradient(ellipse 130% 130% at 50% 50%, rgba(0,0,4,0.86) 46%, rgba(0,0,4,0) 84%);
+    }
+    /* the equations are the one thing that must not shrink to fit: let them wrap instead */
+    .fc-eq { font-size: 16px; line-height: 1.6; margin-bottom: 13px; }
+    .fc-title { margin: 10px 0 11px; }
+    .fc-body { font-size: 14px; }
+    .fc-works { margin-top: 10px; }
+    .jn-card { left: 16px; right: 16px; max-width: none; bottom: 12vh; }
+    .jn-crest { height: 28px; margin-bottom: 11px; }
+    .jr-node, .mc-node { font-size: 9px; letter-spacing: .14em; }
+    .wr { left: 16px; right: 16px; width: auto; padding: 18px 20px; }
+    .outro { padding: 30px 22px; }
+    .outro img { height: 56px; margin-bottom: 24px; }
+    .outro-links { gap: 18px 24px; margin-top: 32px; }
+    /* thumbs, not cursors: the dock is the only thing you tap down here */
+    .dock button { min-height: 44px; padding: 11px 14px; }
+    /* both of these land ON the dock at this width, and both are captions for the
+       physics-panel that is already hidden here — so the pair goes with it */
+    .dock-cap { display: none; }
+    .hud { display: none; }
+  }
+  @media (max-width: 560px) { #nav-machines { display: none; } }
+  @media (max-width: 430px) {
+    .dock { gap: 6px; bottom: 20px; }
+    .dock button { padding: 8px 10px; min-height: 40px; letter-spacing: .1em; }
+    .field-card { bottom: 14vh; }
+    .nav { padding: 0 16px; }
+    .nav .mark { letter-spacing: .2em; gap: 9px; }
+  }
 </style>
 </head>
 <body>
@@ -1021,6 +1069,24 @@ try {
     if (Math.abs(dx) > 120 && now - switchT > 500) {
       hStep(Math.sign(dx));
       dx = 0; switchT = now;
+    }
+  }, { passive: true });
+
+  // …and the same axis by thumb. A start/end delta, not a drag: both listeners are passive
+  // and nothing is ever preventDefault'ed, so vertical scroll stays native and the swarm's
+  // pointer trap keeps getting its pointermove events underneath this.
+  // Swipe LEFT (dx < 0) = next, the way every carousel on a phone reads.
+  let tsx = 0, tsy = 0;
+  addEventListener('touchstart', e => {
+    const t = e.changedTouches[0]; tsx = t.clientX; tsy = t.clientY;
+  }, { passive: true });
+  addEventListener('touchend', e => {
+    if (!hSec()) return;
+    const t = e.changedTouches[0], sx = t.clientX - tsx, sy = t.clientY - tsy;
+    const now = performance.now();
+    if (Math.abs(sx) > 60 && Math.abs(sx) > 1.5 * Math.abs(sy) && now - switchT > 500) {
+      hStep(-Math.sign(sx));
+      switchT = now;
     }
   }, { passive: true });
 

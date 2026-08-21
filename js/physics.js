@@ -53,12 +53,16 @@ export const CONFIG = {
   beadDentR: 17,       // per-bead dimple gaussian radius [px]
 };
 
-const N = CONFIG.N;
-const px = new Float32Array(N), py = new Float32Array(N), pz = new Float32Array(N);
-const vx = new Float32Array(N), vy = new Float32Array(N), vz = new Float32Array(N);
-const tx = new Float32Array(N), ty = new Float32Array(N);
-const hasT = new Uint8Array(N);       // 1 = assigned a glyph site
-const tracer = new Uint8Array(N);     // 1 = amber tracer particle
+// The buffers are sized ONCE, at the biggest tier; N is the LIVE count and init() cuts it
+// (scene3d's quality tier passes 360 on a phone). Every loop below runs to N, so the tail of
+// each array is simply never touched — no reallocation, and state's identity never changes.
+const NMAX = CONFIG.N;
+let N = NMAX;
+const px = new Float32Array(NMAX), py = new Float32Array(NMAX), pz = new Float32Array(NMAX);
+const vx = new Float32Array(NMAX), vy = new Float32Array(NMAX), vz = new Float32Array(NMAX);
+const tx = new Float32Array(NMAX), ty = new Float32Array(NMAX);
+const hasT = new Uint8Array(NMAX);    // 1 = assigned a glyph site
+const tracer = new Uint8Array(NMAX);  // 1 = amber tracer particle
 
 export const state = { px, py, pz, vx, vy, vz, hasT, tracer };
 
@@ -157,7 +161,7 @@ function buildDistField() {
 
 // ---------------------------------------------------------------- spatial hash (pair repulsion)
 let cols = 0, rows = 0, head = new Int32Array(0);
-const nxt = new Int32Array(N);
+const nxt = new Int32Array(NMAX);
 function buildHash() {
   const cell = CONFIG.repelR;
   cols = Math.max(1, Math.ceil(W / cell));
@@ -193,7 +197,11 @@ function hashPairs(forceFn) {
 }
 
 // ---------------------------------------------------------------- public API
-export function init(w, h, gridW, gridH) {
+// n = the live particle count (the quality tier's; omitted = the CONFIG.N the buffers were
+// sized at). CONFIG.N is rewritten to it, so it stays the one number the renderer reads.
+export function init(w, h, gridW, gridH, n) {
+  N = Math.max(1, Math.min(NMAX, (n | 0) || NMAX));
+  CONFIG.N = N;
   grid.w = Math.max(2, gridW | 0); grid.h = Math.max(2, gridH | 0);
   distF = new Float32Array(grid.w * grid.h);
   const vth = Math.sqrt(CONFIG.kT * CONFIG.kTScale) * CONFIG.zNoiseScale;
@@ -222,7 +230,7 @@ export function resize(w, h) {
   if (isWord) applyTargets(null); else buildDistField();
 }
 
-const fx = new Float32Array(N), fy = new Float32Array(N);
+const fx = new Float32Array(NMAX), fy = new Float32Array(NMAX);
 
 export function step(dt) {
   modeT += dt;

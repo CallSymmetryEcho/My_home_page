@@ -81,5 +81,6 @@ hero3d-prototype.html Step1 交付物
 - **博客精华**：`js/data/blog.json`——4 条精华（title/date/excerpt/url）+ blogUrl；**换精华 = 重跑 front-matter 抓取脚本或手编**；博客本体 callsymmetryecho.github.io（bin-lian.com 域名 404 待修）
 - Bin 研究总纲词 = **CONTROL**（纳米尺度与纳米机器人的控制策略）——文案基调以此为轴
 
-- [ ] ⑦b 收尾余项：移动端/响应式（journey 标签重叠等）、性能验收、hero-prototype.html/formations-pcb.js/旧 Bootstrap 清理、machines-preview.html 处置、favicon、合并 main 上线；（可选池：LATTICE/WIRES hero 模式循环、双 JAKIE logo 裁决、星座旁氛围星云裁决）
+- [x] **🚀 2026-08-20 上线**：redesign → main（c669c5a）；旧站标签 `legacy-v1-bootstrap` 永久留档；index.html = 完整六幕滚动叙事；退役：2D 版、Bootstrap 目录、matrial/slide、formations-pcb（均在 git 历史）
+- [ ] ⑦b 上线后余项：**移动端+性能分级（agent 进行中，作为后续更新推送）**；移动端/响应式（journey 标签重叠等）、性能验收、hero-prototype.html/formations-pcb.js/旧 Bootstrap 清理、machines-preview.html 处置、favicon、合并 main 上线；（可选池：LATTICE/WIRES hero 模式循环、双 JAKIE logo 裁决、星座旁氛围星云裁决）
 - [ ] 合并 main 上线，旧 Bootstrap 清理
