@@ -540,6 +540,7 @@
     letter-spacing: .06em; text-align: center; padding: 20px;
   }
   .fallback-note a { color: var(--accent); }
+  .fallback-note .fb-err { font-size: 10px; opacity: .5; max-width: 40em; word-break: break-word; }
 
   /* ---------------------------------------------------------------- small screens
      Every phone rule lives here, in three steps, so there is one place to look:
@@ -833,7 +834,12 @@
 </div>
 
 <script type="importmap">
-{ "imports": { "three": "./js/vendor/three.module.js" } }
+{ "imports": {
+  "three": "./js/vendor/three.module.js",
+  "scene3d": "./js/scene3d.js?v=20260821a",
+  "physics": "./js/physics.js?v=20260821a",
+  "formations": "./js/formations.js?v=20260821a"
+} }
 </script>
 <script type="module">
 function fallback(why) {
@@ -842,8 +848,17 @@ function fallback(why) {
   for (const el of document.querySelectorAll('.hero-copy, .physics-panel, .hud, .pane, .outro, .dock, .dock-cap, .tl, .menu-btn, .menu, .scue, .swipe')) el.style.display = 'none';
   const d = document.createElement('div');
   d.className = 'fallback-note';
-  d.innerHTML = 'This site needs WebGL2 — please try a desktop browser.' +
-    '<a href="image/file/Bin_s_Resume.pdf">download the CV &rarr;</a>';
+  // only claim WebGL2 is the problem when it actually is — any other throw (a failed module
+  // fetch, a version-skewed cache) gets a retry link and shows its real error, so a phone
+  // screenshot of this screen is already the diagnosis
+  let gl2 = false;
+  try { gl2 = !!document.createElement('canvas').getContext('webgl2'); } catch (_) {}
+  d.innerHTML = (gl2
+    ? 'Something went wrong while loading.<a href="">reload &rarr;</a>'
+    : 'This site needs WebGL2 — please try a desktop browser.') +
+    '<a href="image/file/Bin_s_Resume.pdf">download the CV &rarr;</a>' +
+    '<span class="fb-err"></span>';
+  d.querySelector('.fb-err').textContent = String(why && why.message || why || '');
   document.body.appendChild(d);
   console.warn('hero3d:', why);
 }
@@ -852,7 +867,7 @@ function fallback(why) {
 // not just a runtime throw out of createHero (no WebGL2 -> same note)
 try {
   const [scene3d, PHY, F] = await Promise.all([
-    import('./js/scene3d.js'), import('./js/physics.js'), import('./js/formations.js'),
+    import('scene3d'), import('physics'), import('formations'),
   ]);
   const hero = scene3d.createHero(document.getElementById('c3d'));
   const kt = document.getElementById('kt'), ktv = document.getElementById('ktv');

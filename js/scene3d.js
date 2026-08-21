@@ -19,7 +19,7 @@ import { EffectComposer } from './vendor/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from './vendor/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from './vendor/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from './vendor/jsm/postprocessing/OutputPass.js';
-import * as PHY from './physics.js';
+import * as PHY from 'physics';   // bare: resolved by index.html's importmap so PHY stays a singleton across versioned URLs
 
 const GW = 121, GH = 61;                  // potential grid == fabric line lattice
 const SHEET_TILT = 55 * Math.PI / 180;    // sheet tilt from horizontal (55°: more face-on, word reads)
