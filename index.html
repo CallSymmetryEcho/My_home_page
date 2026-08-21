@@ -47,8 +47,10 @@
   .pane-writing { height: 110vh; height: 110dvh; }
   .pane-contact { height: 60vh; height: 60dvh; }
 
+  /* z-index 10 — ABOVE the phone menu's 9: the close X lives in this bar, and the bar is its
+     own stacking context, so the button cannot be raised out of it on its own. */
   .nav {
-    position: fixed; top: 0; left: 0; right: 0; height: 64px; z-index: 3;
+    position: fixed; top: 0; left: 0; right: 0; height: 64px; z-index: 10;
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 clamp(20px, 4vw, 44px);
     border-bottom: 1px solid var(--hair);
@@ -60,12 +62,90 @@
     display: flex; align-items: center; gap: 12px;
   }
   .nav .mark img { height: 26px; width: auto; display: block; }
-  .nav nav { display: flex; gap: clamp(18px, 3vw, 34px); }
+  /* the section map. One link per major section (index 1…5 — the wordmark IS 00), so the nav
+     and the time machine name the same six places. The active one is set from render(), the
+     same pass that lights the timeline tick, so the two can never disagree. */
+  .nav nav { display: flex; align-items: center; gap: clamp(16px, 2.2vw, 30px); }
   .nav nav a {
-    font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
+    position: relative; font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
     color: var(--text-dim); text-decoration: none; transition: color .25s ease;
   }
-  .nav nav a:hover { color: var(--text); }
+  /* the underline is drawn, not toggled: scaleX from the left on both hover and .on */
+  .nav nav a::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: -6px; height: 1px;
+    background: rgba(141,233,236,.6);
+    transform: scaleX(0); transform-origin: left center;
+    transition: transform .25s ease;
+  }
+  .nav nav a:hover, .nav nav a.on { color: var(--text); }
+  .nav nav a:hover::after, .nav nav a.on::after { transform: scaleX(1); }
+  /* the CV is not a section — it is the one warm thing up here, same voice as the journey
+     card's DOWNLOAD CV. Shared with the phone menu's chip, hence the two-selector rule. */
+  .nav nav .nav-cv, .menu .nav-cv {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .18em; text-decoration: none;
+    border: 1px solid rgba(255,217,160,.5); border-radius: 2px; padding: 5px 12px;
+    color: var(--accent-warm);
+    transition: color .25s ease, border-color .25s ease, background-color .25s ease;
+  }
+  .nav nav .nav-cv::after { display: none; }
+  .nav nav .nav-cv:hover, .menu .nav-cv:hover {
+    background: rgba(255,217,160,.12); border-color: rgba(255,217,160,.9); color: #fff1da;
+  }
+  .nav a:focus-visible, .menu a:focus-visible, .menu button:focus-visible,
+  .menu-btn:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------------------------------------------------------------- phone menu
+     Two hairlines that fold into an X, and a full-screen sheet listing the same six
+     sections in the timeline's voice. Both are display:none until ≤760 (see the small-screen
+     block at the end), so the desktop never pays for them and a rotation cannot strand the
+     sheet open. */
+  .menu-btn {
+    display: none; appearance: none; background: none; border: 0; padding: 0;
+    position: relative; width: 44px; height: 44px; margin-right: -10px; cursor: pointer;
+  }
+  .menu-btn span {
+    position: absolute; left: 14px; width: 16px; height: 1px; background: var(--text);
+    transition: transform .3s ease;
+  }
+  .menu-btn span:nth-child(1) { top: 20px; }
+  .menu-btn span:nth-child(2) { top: 24px; }
+  .menu-btn.open span:nth-child(1) { transform: translateY(2px) rotate(45deg); }
+  .menu-btn.open span:nth-child(2) { transform: translateY(-2px) rotate(-45deg); }
+
+  .menu {
+    display: none; position: fixed; inset: 0; z-index: 9;
+    flex-direction: column; justify-content: center; align-items: flex-start;
+    padding: 0 clamp(28px, 10vw, 64px);
+    background: rgba(0,0,4,.92);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    opacity: 0; visibility: hidden;
+    transition: opacity .3s ease, visibility .3s ease;
+  }
+  .menu.open { opacity: 1; visibility: visible; }
+  .m-row {
+    appearance: none; background: none; border: 0; padding: 0; cursor: pointer;
+    display: flex; align-items: baseline; gap: 14px; text-align: left;
+    font-family: var(--mono); color: var(--text-dim);
+    opacity: 0; transform: translateY(10px);
+    transition: opacity .4s ease, transform .4s ease, color .25s ease;
+  }
+  .m-row + .m-row { margin-top: 22px; }
+  .m-i { font-size: 11px; letter-spacing: .18em; opacity: .5; }
+  .m-n { font-size: 15px; letter-spacing: .3em; text-transform: uppercase; }
+  .m-row.on { color: var(--text); }
+  .m-row.on .m-i { color: var(--accent); opacity: .9; }
+  .m-div { width: 42px; height: 1px; background: var(--hair); margin: 30px 0 26px; }
+  .m-div, .m-cv { opacity: 0; transform: translateY(10px); transition: opacity .4s ease, transform .4s ease, color .25s ease, border-color .25s ease, background-color .25s ease; }
+  /* the entrance, in CSS only: six rows then the rule and the chip, 40 ms apart */
+  .menu.open .m-row, .menu.open .m-div, .menu.open .m-cv { opacity: 1; transform: none; }
+  .menu.open .m-row:nth-child(1) { transition-delay: .04s; }
+  .menu.open .m-row:nth-child(2) { transition-delay: .08s; }
+  .menu.open .m-row:nth-child(3) { transition-delay: .12s; }
+  .menu.open .m-row:nth-child(4) { transition-delay: .16s; }
+  .menu.open .m-row:nth-child(5) { transition-delay: .20s; }
+  .menu.open .m-row:nth-child(6) { transition-delay: .24s; }
+  .menu.open .m-div { transition-delay: .28s; }
+  .menu.open .m-cv  { transition-delay: .32s; }
 
   .hero-copy {
     position: fixed; left: 50%; top: 72%; transform: translateX(-50%);
@@ -414,8 +494,8 @@
   /* ---------------------------------------------------------------- small screens
      Every phone rule lives here, in three steps, so there is one place to look:
        ≤760  phone-shaped — cards become full-width bottom sheets, the timeline goes away
-             (the dock plus the scroll are the whole wayfinder there), the monument shrinks.
-       ≤560  the nav drops MACHINES: it is the one link the scroll story tells anyway.
+             (the dock plus the scroll are the whole wayfinder there), the monument shrinks,
+             and the nav's link row is replaced by the menu button + its full-screen sheet.
        ≤430  small phone — the docks compress so four boxes still fit on one line.
      The .tl and .physics-panel display:none rules stay next to their own components. */
   @media (max-width: 760px) {
@@ -447,8 +527,11 @@
        physics-panel that is already hidden here — so the pair goes with it */
     .dock-cap { display: none; }
     .hud { display: none; }
+    /* five links do not fit next to the wordmark on a phone — the sheet carries all six */
+    .nav nav { display: none; }
+    .menu-btn { display: block; }
+    .menu { display: flex; }
   }
-  @media (max-width: 560px) { #nav-machines { display: none; } }
   @media (max-width: 430px) {
     .dock { gap: 6px; bottom: 20px; }
     .dock button { padding: 8px 10px; min-height: 40px; letter-spacing: .1em; }
@@ -463,12 +546,23 @@
 
 <header class="nav">
   <a class="mark" href="#"><img src="image/logo-bin-mono.png" alt="">BIN LIAN</a>
-  <nav>
-    <a href="#fields" id="nav-research">RESEARCH</a>
-    <a href="#machines" id="nav-machines">MACHINES</a>
-    <a href="image/file/Bin_s_Resume.pdf">CV</a>
+  <!-- data-k IS the SECTIONS index: one link per major section, the wordmark being 00. -->
+  <nav id="navlinks">
+    <a href="#fields" data-k="1">RESEARCH</a>
+    <a href="#machines" data-k="2">MACHINES</a>
+    <a href="#journey" data-k="3">JOURNEY</a>
+    <a href="#writing" data-k="4">WRITING</a>
+    <a href="#contact" data-k="5">CONTACT</a>
+    <a class="nav-cv" href="image/file/Bin_s_Resume.pdf">CV</a>
   </nav>
+  <button class="menu-btn" id="menu-btn" aria-label="Menu" aria-expanded="false" aria-controls="menu">
+    <span></span><span></span>
+  </button>
 </header>
+
+<!-- the phone menu. Its rows are built from SECTIONS, so it speaks the timeline's labels
+     and cannot drift out of sync with them. -->
+<div class="menu" id="menu" role="dialog" aria-modal="true" aria-label="Menu"></div>
 
 <section class="pane" id="hero">
   <div class="hero-copy">
@@ -660,9 +754,9 @@
     <p class="outro-name">BIN LIAN</p>
     <p class="outro-line">Commanding matter with fields.</p>
     <p class="outro-links">
-      <a href="mailto:bin_lian@utexas.edu">EMAIL</a>
+      <a href="mailto:lianbin522957@gmail.com">EMAIL</a>
       <a href="https://github.com/CallSymmetryEcho">GITHUB</a>
-      <a href="https://www.linkedin.com/in/bin-lian">LINKEDIN</a>
+      <a href="https://www.linkedin.com/in/jakie-2843041bb">LINKEDIN</a>
       <a href="https://blog.bin-lian.com">BLOG</a>
       <a href="image/file/Bin_s_Resume.pdf">CV</a>
     </p>
@@ -695,7 +789,7 @@
 function fallback(why) {
   document.getElementById('c3d').style.display = 'none';
   document.body.style.overflow = 'hidden';   // the scroll story is the swarm; without it there is nothing to scroll
-  for (const el of document.querySelectorAll('.hero-copy, .physics-panel, .hud, .pane, .outro, .dock, .dock-cap, .tl')) el.style.display = 'none';
+  for (const el of document.querySelectorAll('.hero-copy, .physics-panel, .hud, .pane, .outro, .dock, .dock-cap, .tl, .menu-btn, .menu')) el.style.display = 'none';
   const d = document.createElement('div');
   d.className = 'fallback-note';
   d.innerHTML = 'This site needs WebGL2 — please try a desktop browser.' +
@@ -795,6 +889,16 @@ try {
         `<button class="tl-sub" data-j="${j}" aria-label="${c.dataset.name}"></button>`).join('')}</div>` : ''}
     </div>`).join('');
   const tlSecs = [...tl.children];
+  // the phone sheet: the same six labels, split into their index and their name. data-k is
+  // the SECTIONS index on both halves of the nav, so one delegate handles either.
+  const menu = document.getElementById('menu'), menuBtn = document.getElementById('menu-btn');
+  menu.innerHTML = SECTIONS.map((s, k) => {
+    const [n, name] = s.label.split(' — ');
+    return `<button class="m-row" data-k="${k}"><span class="m-i">${n}</span><span class="m-n">${name}</span></button>`;
+  }).join('') + '<div class="m-div"></div>' +
+    '<a class="nav-cv m-cv" href="image/file/Bin_s_Resume.pdf">CV</a>';
+  const mRows = [...menu.querySelectorAll('.m-row')];
+  const navLs = [...document.querySelectorAll('#navlinks a[data-k]')];
   const subsOf = k => [...tlSecs[k].querySelectorAll('.tl-sub')];
   const fieldSubs = subsOf(FSEC), machineSubs = subsOf(MSEC), planetSubs = subsOf(JSEC);
 
@@ -916,6 +1020,10 @@ try {
     pdockBtns.forEach((b, k) => b.classList.toggle('on', k === planetIdx));
     fieldSubs.forEach((b, j) => b.classList.toggle('on', j === fieldIdx));
     planetSubs.forEach((b, j) => b.classList.toggle('on', j === planetIdx));
+    // the nav map and the phone sheet ride the SAME vSec as the timeline below — HOME lights
+    // nothing up there, because the wordmark is home.
+    navLs.forEach(a => a.classList.toggle('on', +a.dataset.k === vSec));
+    mRows.forEach((r, k) => r.classList.toggle('on', k === vSec));
     // the fan: ticks recede with distance from where you are.
     tlSecs.forEach((el, k) => {
       const d = Math.abs(k - vSec), t = el.querySelector('.tl-tick');
@@ -1053,6 +1161,7 @@ try {
   const hStep = d => { const h = hSec(); if (h === FSEC) setField(fieldIdx + d); else if (h) setPlanet(planetIdx + d); };
 
   addEventListener('keydown', e => {
+    if (e.key === 'Escape' && menu.classList.contains('open')) return setMenu(false);
     if (!hSec()) return;
     if (e.key === 'ArrowRight') hStep(1);
     else if (e.key === 'ArrowLeft') hStep(-1);
@@ -1090,13 +1199,32 @@ try {
     }
   }, { passive: true });
 
-  for (const [id, k] of [['nav-research', FSEC], ['nav-machines', MSEC]])
-    document.getElementById(id).addEventListener('click', e => { e.preventDefault(); goSec(k); });
+  // one delegate for both halves of the nav: anything carrying data-k is a section jump, and
+  // in the sheet any tap at all also closes it (the CV link keeps its own navigation).
+  const setMenu = on => {
+    menu.classList.toggle('open', on);
+    menuBtn.classList.toggle('open', on);
+    menuBtn.setAttribute('aria-expanded', on);
+    document.body.style.overflow = on ? 'hidden' : '';
+  };
+  const navGo = e => {
+    const el = e.currentTarget === menu ? e.target.closest('[data-k], a') : e.target.closest('[data-k]');
+    if (!el) return;
+    if (el.dataset.k !== undefined) { e.preventDefault(); goSec(+el.dataset.k); }
+    if (e.currentTarget === menu) setMenu(false);
+  };
+  document.getElementById('navlinks').addEventListener('click', navGo);
+  menu.addEventListener('click', navGo);
+  menuBtn.addEventListener('click', () => setMenu(!menu.classList.contains('open')));
+  document.querySelector('.nav .mark').addEventListener('click', e => { e.preventDefault(); setMenu(false); goSec(0); });
 
   // formations are generated against a viewport, so they must be re-generated for the new
   // one. 260 ms > scene3d's own 200 ms resize debounce, so PHY.resize() has already run.
   let rt = 0;
   addEventListener('resize', () => {
+    // a phone turned sideways is wider than 760: the sheet goes display:none there, so it has
+    // to give the body's scroll back on the way out
+    if (innerWidth > 760) setMenu(false);
     clearTimeout(rt);
     rt = setTimeout(() => { if (vSec === FSEC) PHY.retarget(ptsFor()); }, 260);
   });
