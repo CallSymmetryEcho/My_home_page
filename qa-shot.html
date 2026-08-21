@@ -1080,5 +1080,8 @@ try {
   fallback(e);
 }
 </script>
+<script type="module">
+addEventListener('load', () => setTimeout(() => { window.__hero && window.__hero.advance(8); }, 1500));
+</script>
 </body>
 </html>
