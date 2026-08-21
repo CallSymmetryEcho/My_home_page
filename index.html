@@ -310,15 +310,32 @@
   }
   .jr-node.active, .mc-node.active { opacity: .85; }
   .mc-node .chip { display: inline-block; margin-left: 9px; vertical-align: 1px; }
-  /* the two satellites' labels: a footnote to their school, so a size down and a step
-     dimmer, and they only exist while the map is zoomed onto USTC. Their own transform
-     centres them under the moving star (see placeSats). */
-  .jr-sat { font-size: 9px; letter-spacing: .16em; }
-  .jr-sat.active { opacity: .6; }
-  /* …and the same two, spelled out on the USTC card itself */
+  /* the two satellites: COMPANION cards — the same crest-over-name composition as a stop
+     card, at a third the size, hanging off their little star by a hairline. Same .jr-node
+     idiom (fixed, transform-driven, inert), so placeSats just moves them; they only exist
+     while the map is zoomed onto the school they orbit. */
+  .jr-sat {
+    display: inline-flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 9px 13px; border: 1px solid rgba(255,255,255,.14);
+    background: rgba(0,0,4,.62); border-radius: 3px;
+  }
+  .jr-sat.active { opacity: .85; }
+  /* the thread it hangs from — centred on the card's top edge, pointing back at the star */
+  .jr-sat::before {
+    content: ''; position: absolute; bottom: 100%; left: 50%;
+    width: 1px; height: 10px; background: rgba(255,255,255,.25);
+  }
+  .sat-crest {
+    display: block; height: 25px; width: auto; opacity: .9;
+    filter: drop-shadow(0 0 6px rgba(190,225,255,.3));   /* a little starlight around it */
+  }
+  .jr-sat b { font-weight: normal; font-size: 9px; letter-spacing: .16em; }
+  .jr-sat i { font-style: normal; font-size: 8px; color: var(--text-dim); }
+  /* the companion facts, restated on the USTC card ONLY where the orbit can't carry them
+     (≤430px hides .jr-sat i) — see the small-screens block */
   .jn-sat {
-    font-family: var(--mono); font-size: 11px; letter-spacing: .04em; line-height: 1.85;
-    color: var(--text-dim); opacity: .8; margin-top: 12px;
+    display: none; font-family: var(--mono); font-size: 10px; letter-spacing: .04em;
+    line-height: 1.85; color: var(--text-dim); opacity: .8; margin-top: 12px;
   }
 
   /* ---------------------------------------------------------------- chapter 04 — writing
@@ -568,6 +585,10 @@
     .jn-card { left: 16px; right: 16px; max-width: none; bottom: 12vh; }
     .jn-crest { height: 28px; margin-bottom: 11px; }
     .jr-node, .mc-node { font-size: 9px; letter-spacing: .14em; }
+    .jr-sat { padding: 7px 10px; }
+    .sat-crest { height: 18px; }
+    .jr-sat b { font-size: 8px; }
+    .jr-sat i { font-size: 7.5px; }
     .wr { left: 16px; right: 16px; width: auto; padding: 18px 20px; }
     .outro { padding: 30px 22px; }
     .outro img { height: 56px; margin-bottom: 24px; }
@@ -593,6 +614,12 @@
     .field-card .fc-body { display: none; }
     /* …except the journey's overview card, whose body IS its whole content */
     #journey-card .fc-body { display: block; }
+    /* the same rule for the companion cards: at this width the whole ORBIT is barely wider
+       than one card, so two full ones spend half the cycle on top of each other. The crest is
+       is a wordmark and the name under it costs nothing, but the date line is what makes the
+       card 149px wide — so down here the date steps out and the card is crest + name. */
+    .jr-sat i { display: none; }   /* two date lines don't fit a 66px orbit — placeSats dodges the cards, the ⟳ rows carry the dates */
+    .jn-sat { display: block; }
     .nav { padding: 0 16px; }
     .nav .mark { letter-spacing: .2em; gap: 9px; }
   }
@@ -756,10 +783,11 @@
   <!-- one label per PRIMARY star, in scene3d's own table order -->
   <span class="jr-node">USTC · 2017</span>
   <span class="jr-node">UT AUSTIN · 2021 —</span>
-  <!-- …and the two satellites, whose text comes from that same table (see satNodes) and
-       which only surface once the map has zoomed onto the school they orbit -->
-  <span class="jr-node jr-sat"></span>
-  <span class="jr-node jr-sat"></span>
+  <!-- …and the two satellites, as companion cards — same order as scene3d's SATS table, which
+       still drives WHERE they go (see placeSats); they only surface once the map has zoomed
+       onto the school they orbit -->
+  <span class="jr-node jr-sat"><img class="sat-crest" src="image/crest-berkeley-mono.png" alt=""><b>UC BERKELEY</b><i>summer exchange · 2019</i></span>
+  <span class="jr-node jr-sat"><img class="sat-crest" src="image/crest-brown-mono.png" alt=""><b>BROWN UNIVERSITY</b><i>research intern · 2020</i></span>
 
   <article class="field-card jn-card" data-n="01" data-name="USTC">
     <img class="jn-crest" src="image/crest-ustc-mono.png" alt="USTC">
@@ -768,9 +796,10 @@
     <p class="jn-deg">B.S. Material Physics · 2017–2021</p>
     <p class="fc-body">Chemistry &amp; Materials Science — where matter first became my language.</p>
     <p class="fc-facts">physics-innovation grand prize · USTC Excellent Student Scholarship ×2 · Elite Scholarship, Institute of Chemistry, CAS · Quantum Physics (H) TA</p>
-    <!-- the two satellites, in the same order as scene3d's SATS table: a summer and an
-         internship are stops on THIS orbit, not chapters of their own -->
-    <p class="jn-sat">⟳ BERKELEY — summer exchange · 2019<br>⟳ BROWN — research intern · 2020</p>
+    <!-- the summer and the internship live on the two companion cards orbiting this star
+         (.jr-sat) — except at ≤430px, where their date lines don't fit the orbit and these
+         two rows take over (hidden everywhere else) -->
+    <p class="jn-sat">⟳ UC BERKELEY — summer exchange · 2019<br>⟳ BROWN UNIVERSITY — research intern · 2020</p>
   </article>
 
   <article class="field-card jn-card" data-n="02" data-name="UT AUSTIN">
@@ -1042,22 +1071,50 @@ try {
   }
 
   // the satellites have no fixed place at all — they are on a clock, orbiting their parent —
-  // so their labels ask scene3d where they ENDED UP each frame. Text comes from the same
-  // table, so a label cannot name a satellite that is not there.
-  satNodes.forEach((el, k) => { el.textContent = hero.satellites()[k][0]; });
+  // so their cards ask scene3d where they ENDED UP each frame. The table's order is the cards'
+  // order in the markup, so card k names satellite k.
   function placeSats(on) {
     const list = hero.satellites();
+    const sp = [];
     satNodes.forEach((el, k) => {
       el.classList.toggle('active', on && list[k][4] > 0.02);
       if (!on) return;
       const [x, y] = hero.projectWorld(list[k][1], list[k][2], list[k][3]);
       // centred UNDER the little star — they orbit, so a left/right offset would swing — and
-      // held inside the viewport, because on a phone the orbit reaches the frame edge
+      // held inside the viewport on BOTH axes, because the orbit reaches the frame edge and a
+      // card, unlike a line, has a bottom edge to keep on screen too.
+      // The wall it stops at is the STOP CARD, not the frame: that card is on top of it and
+      // owns its corner (the right half on a desktop, the bottom third as a phone sheet), and
+      // a companion card sliding under it is a card cut in half.
+      const box = jnCards[0].getBoundingClientRect(), solo = innerWidth <= SOLO_W;
       const h = el.offsetWidth / 2 + 8;
-      const xc = Math.max(h, Math.min(innerWidth - h, x));
-      el.style.transform =
-        `translate(${xc.toFixed(1)}px, ${(y + 0.030 * innerHeight).toFixed(1)}px) translateX(-50%)`;
+      const yc = Math.min((solo ? box.top : innerHeight) - el.offsetHeight - 8,
+                          y + 0.038 * innerHeight);
+      // …and on a desktop only where the two actually meet: the orbit swings above the card
+      // as well as beside it, and a wall the card never touches is a wall that should not stop it.
+      const right = (solo || yc + el.offsetHeight < box.top || yc > box.bottom
+                     ? innerWidth : box.left) - h;
+      const floor = (solo ? box.top : innerHeight) - el.offsetHeight - 8;
+      sp[k] = { el, h, floor, yc, xc: Math.max(h, Math.min(right, x)) };
     });
+    if (!on) return;
+    // opposite phases still stack when the stars align VERTICALLY — the one moment their
+    // x-gap closes is also the moment their y-gap peaks, so the dodge is vertical: upper
+    // card up, lower card down, walls handing their share to the other side. The up/down
+    // order can only swap while the stars are far apart horizontally (no overlap there),
+    // so the displacement is continuous in phase — the pass reads as a dodge, never a pop.
+    const [a, b] = sp;
+    if (Math.abs(a.xc - b.xc) < a.h + b.h) {
+      const top = a.yc <= b.yc ? a : b, bot = top === a ? b : a;
+      const need = top.yc + top.el.offsetHeight + 8 - bot.yc;
+      if (need > 0) {
+        const down = Math.min(bot.floor - bot.yc, need / 2);
+        bot.yc += Math.max(0, down);
+        top.yc = Math.max(70, top.yc - (need - Math.max(0, down)));
+      }
+    }
+    for (const p of sp) p.el.style.transform =
+      `translate(${p.xc.toFixed(1)}px, ${p.yc.toFixed(1)}px) translateX(-50%)`;
   }
 
   // the machine beat's two, same idiom — except their anchors are WORLD points, not sheet
