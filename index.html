@@ -310,6 +310,16 @@
   }
   .jr-node.active, .mc-node.active { opacity: .85; }
   .mc-node .chip { display: inline-block; margin-left: 9px; vertical-align: 1px; }
+  /* the two satellites' labels: a footnote to their school, so a size down and a step
+     dimmer, and they only exist while the map is zoomed onto USTC. Their own transform
+     centres them under the moving star (see placeSats). */
+  .jr-sat { font-size: 9px; letter-spacing: .16em; }
+  .jr-sat.active { opacity: .6; }
+  /* …and the same two, spelled out on the USTC card itself */
+  .jn-sat {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .04em; line-height: 1.85;
+    color: var(--text-dim); opacity: .8; margin-top: 12px;
+  }
 
   /* ---------------------------------------------------------------- chapter 04 — writing
      The blog, on the page. No new formation behind it: the journey's released stardust and the
@@ -421,6 +431,40 @@
     opacity: 0; pointer-events: none; user-select: none; transition: opacity .3s ease;
   }
   #fdock.on ~ .dock-cap { opacity: .7; }
+
+  /* ---------------------------------------------------------------- guidance
+     Two hints, and both are one-shot — nobody should have to be told twice, and neither
+     needs storage: the flag is the element reference (the cue) or a Set (the swipe).
+       .scue   the hero's scroll cue. The whole story is vertical and on a phone there is
+               nothing else on screen that says so. Gone for good past 0.3H.
+       .swipe  the horizontal axis, which is the one thing a thumb cannot guess. Coarse
+               pointers only, once per switcher (the fields, and the zoomed journey).
+     z-index 4: above the docks (3) and the hud (2), because it is an instruction. */
+  .scue {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 4;
+    display: flex; flex-direction: column; align-items: center; gap: 9px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: .3em; text-indent: .3em;
+    color: var(--text-dim); pointer-events: none; user-select: none;
+    opacity: 0; animation: fadein 1.6s ease 3.4s forwards;   /* after the hero copy */
+    transition: opacity .6s ease;
+  }
+  /* two borders of a square, turned 45° — a chevron with no glyph and no asset */
+  .scue i {
+    width: 8px; height: 8px; border: solid currentColor; border-width: 0 1px 1px 0;
+    animation: dip 2s ease-in-out infinite;
+  }
+  @keyframes dip {
+    0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: .5; }
+    50%      { transform: rotate(45deg) translate(3px, 3px); opacity: 1; }
+  }
+  .scue.gone { opacity: 0 !important; }   /* beats the intro animation's forwards fill */
+  .swipe {
+    position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 4;
+    font-family: var(--mono); font-size: 10px; letter-spacing: .3em; text-indent: .3em;
+    color: var(--text-dim); white-space: nowrap;
+    opacity: 0; pointer-events: none; user-select: none; transition: opacity .5s ease;
+  }
+  .swipe.on { opacity: .85; }
 
   /* ---------------------------------------------------------------- time machine
      The vertical wayfinder. One tick per major section; the current one is widest and
@@ -541,7 +585,13 @@
   @media (max-width: 430px) {
     .dock { gap: 6px; bottom: 20px; }
     .dock button { padding: 8px 10px; min-height: 40px; letter-spacing: .1em; }
-    .field-card { bottom: 14vh; }
+    /* the card is a bottom SHEET here: the actor on stage owns the upper half, so the card
+       is capped at a third of the screen and the prose — the one part every card can lose
+       and still say what it is — steps out. Title, equation, facts and works stay. */
+    .field-card { bottom: 14vh; max-height: 34vh; overflow: hidden; }
+    .field-card .fc-body { display: none; }
+    /* …except the journey's overview card, whose body IS its whole content */
+    #journey-card .fc-body { display: block; }
     .nav { padding: 0 16px; }
     .nav .mark { letter-spacing: .2em; gap: 9px; }
   }
@@ -577,6 +627,10 @@
     <p class="hint">each bead curves the sheet · your cursor is an optical trap · click to pulse-melt</p>
   </div>
 </section>
+
+<!-- the two one-shot hints. Both are empty until the script decides they are needed. -->
+<div class="scue"><span>SCROLL</span><i></i></div>
+<div class="swipe">‹ &nbsp;SWIPE&nbsp; ›</div>
 
 <!-- ONE vertical pane. Its four fields switch horizontally (dock / arrows / trackpad).
      data-n + data-name feed the dock and the timeline sub-ticks; data-gen names the
@@ -632,7 +686,7 @@
   <article class="field-card" data-n="01" data-name="BOARD">
     <p class="fc-kicker">CHAPTER 02 — MACHINES</p>
     <h2 class="fc-title">From physics to machines</h2>
-    <p class="fc-body">The board I etched into spacetime is real — and it belongs to a machine.</p>
+    <p class="fc-body">The board I etched into the potential surface is real — and it belongs to a machine.</p>
     <p class="fc-facts">HS_WB · hydrogel-sensor wristband controller</p>
     <p class="fc-pub"><span class="chip">HARDWARE</span></p>
   </article>
@@ -683,10 +737,12 @@
   <span class="mc-node" id="mc-nano">E-TWEEZERS · MULTISCALE<span class="chip">IN PREP</span></span>
 </section>
 
-<!-- Chapter 03. The machine story fades out (tExit) and the fabric hands the stage to FOUR
-     STARS — one per school, diffraction spikes and all, wired like the Big Dipper, with UT
-     Austin as the Polaris of the chart. Two acts inside one pane:
-       overview (t4 0→.45)  the constellation forms; the four projected labels name it
+<!-- Chapter 03. The machine story fades out (tExit) and the fabric hands the stage to TWO
+     STARS — one per degree, diffraction spikes and all, wired by a single line, with UT
+     Austin as the Polaris of the chart. The summer at Berkeley and the internship at Brown
+     are not stops but SATELLITES: two small stars orbiting USTC (scene3d's SATS), named
+     only once the map has zoomed onto it. Two acts inside one pane:
+       overview (t4 0→.45)  the constellation forms; the two projected labels name it
        zoom     (t4 .45→1)  the map converges on ONE star, parked left; its card comes up on
                             the right (crest included), and from there the schools switch
                             HORIZONTALLY (dock/arrows/wheel) while the view cruises star-to-
@@ -696,10 +752,13 @@
     <p class="fc-kicker">CHAPTER 03 — JOURNEY</p>
     <p class="fc-body">Hefei → Berkeley → Providence → Austin.</p>
   </article>
+  <!-- one label per PRIMARY star, in scene3d's own table order -->
   <span class="jr-node">USTC · 2017</span>
-  <span class="jr-node">BERKELEY · 2019</span>
-  <span class="jr-node">BROWN · 2020</span>
   <span class="jr-node">UT AUSTIN · 2021 —</span>
+  <!-- …and the two satellites, whose text comes from that same table (see satNodes) and
+       which only surface once the map has zoomed onto the school they orbit -->
+  <span class="jr-node jr-sat"></span>
+  <span class="jr-node jr-sat"></span>
 
   <article class="field-card jn-card" data-n="01" data-name="USTC">
     <img class="jn-crest" src="image/crest-ustc-mono.png" alt="USTC">
@@ -707,30 +766,15 @@
     <h2 class="fc-title">USTC</h2>
     <p class="jn-deg">B.S. Material Physics · 2017–2021</p>
     <p class="fc-body">Chemistry &amp; Materials Science — where matter first became my language.</p>
-    <p class="fc-facts">physics-innovation grand prize · USTC Excellent Student Scholarship ×2 · Elite Scholarship, Institute of Chemistry, CAS · quantum-physics TA</p>
+    <p class="fc-facts">physics-innovation grand prize · USTC Excellent Student Scholarship ×2 · Elite Scholarship, Institute of Chemistry, CAS · Quantum Physics (H) TA</p>
+    <!-- the two satellites, in the same order as scene3d's SATS table: a summer and an
+         internship are stops on THIS orbit, not chapters of their own -->
+    <p class="jn-sat">⟳ BERKELEY — summer exchange · 2019<br>⟳ BROWN — research intern · 2020</p>
   </article>
 
-  <article class="field-card jn-card" data-n="02" data-name="BERKELEY">
-    <img class="jn-crest" src="image/crest-berkeley-mono.png" alt="UC Berkeley">
-    <p class="fc-kicker">STOP 02 — BERKELEY</p>
-    <h2 class="fc-title">UC Berkeley</h2>
-    <p class="jn-deg">Summer exchange · 2019</p>
-    <p class="fc-body">A summer of quantum mechanics and real analysis on the Pacific.</p>
-    <p class="fc-facts">Physics 137A · Math 104</p>
-  </article>
-
-  <article class="field-card jn-card" data-n="03" data-name="BROWN">
-    <img class="jn-crest" src="image/crest-brown-mono.png" alt="Brown">
-    <p class="fc-kicker">STOP 03 — PROVIDENCE</p>
-    <h2 class="fc-title">Brown</h2>
-    <p class="jn-deg">Research intern · 2020</p>
-    <p class="fc-body">Machine learning meets surface chemistry in the Rubenstein group.</p>
-    <p class="fc-facts">ML-assisted material design</p>
-  </article>
-
-  <article class="field-card jn-card" data-n="04" data-name="UT AUSTIN">
+  <article class="field-card jn-card" data-n="02" data-name="UT AUSTIN">
     <img class="jn-crest" src="image/crest-utaustin-mono.png" alt="UT Austin">
-    <p class="fc-kicker">STOP 04 — AUSTIN</p>
+    <p class="fc-kicker">STOP 02 — AUSTIN</p>
     <h2 class="fc-title">UT Austin</h2>
     <p class="jn-deg">Ph.D., Texas Materials Institute · 2021 —</p>
     <p class="fc-body">Commanding matter with fields in the Fan lab.</p>
@@ -795,7 +839,7 @@
 function fallback(why) {
   document.getElementById('c3d').style.display = 'none';
   document.body.style.overflow = 'hidden';   // the scroll story is the swarm; without it there is nothing to scroll
-  for (const el of document.querySelectorAll('.hero-copy, .physics-panel, .hud, .pane, .outro, .dock, .dock-cap, .tl, .menu-btn, .menu')) el.style.display = 'none';
+  for (const el of document.querySelectorAll('.hero-copy, .physics-panel, .hud, .pane, .outro, .dock, .dock-cap, .tl, .menu-btn, .menu, .scue, .swipe')) el.style.display = 'none';
   const d = document.createElement('div');
   d.className = 'fallback-note';
   d.innerHTML = 'This site needs WebGL2 — please try a desktop browser.' +
@@ -870,7 +914,8 @@ try {
   const journeyCard = document.getElementById('journey-card');
   const writingBlock = document.getElementById('writing-block');
   const contactBlock = document.getElementById('contact-block');
-  const jrNodes = [...document.querySelectorAll('.jr-node')];
+  const jrNodes = [...document.querySelectorAll('.jr-node:not(.jr-sat)')];
+  const satNodes = [...document.querySelectorAll('.jr-sat')];
   const c01 = v => (v > 0 ? (v < 1 ? v : 1) : 0);
   const heroCopy = document.querySelector('.hero-copy');
   const pes = document.querySelector('.physics-panel');
@@ -878,6 +923,27 @@ try {
   const pdock = document.getElementById('pdock');
   const tl = document.querySelector('.tl');
   const clamp = (v, hi) => Math.max(0, Math.min(hi, v | 0));
+  // the phone breakpoint, in the one place the script needs it — scene3d owns its own copy
+  // for the solo staging, and both are the CSS block's 760.
+  const SOLO_W = 760;
+
+  // ---------------------------------------------------------------- guidance
+  // Two hints, both one-shot, neither stored: the scroll cue's flag IS its reference (nulled
+  // once, never re-shown) and the swipe hint's is a Set of the switchers already named.
+  let scue = document.querySelector('.scue');
+  const swipeEl = document.querySelector('.swipe');
+  const hinted = new Set();
+  let hintT = 0;
+  const hideHint = () => { clearTimeout(hintT); swipeEl.classList.remove('on'); };
+  // …and only where there is a thumb: a mouse has the dock, the arrows and the wheel, all of
+  // which are visible. Queried at call time so a device switch (or an emulator) is honoured.
+  function swipeHint(k) {
+    if (hinted.has(k) || !matchMedia('(pointer: coarse)').matches) return;
+    hinted.add(k);
+    swipeEl.classList.add('on');
+    clearTimeout(hintT);
+    hintT = setTimeout(hideHint, 4000);
+  }
 
   // one dock idiom, two docks: the fields' and the journey's. Both are built from their own
   // cards' data-n / data-name, so adding a stop is adding a card.
@@ -953,7 +1019,29 @@ try {
     jrNodes.forEach((el, k) => {
       const n = NODES[k];
       const [x, y] = hero.project(n[1] * innerWidth, n[2] * innerHeight, n[3] * innerHeight);
-      el.style.transform = `translate(${(x + dx).toFixed(1)}px, ${(y + dy).toFixed(1)}px)`;
+      // …and held inside the frame: on a phone the right-hand star is close enough to the
+      // edge that its own below-right offset would hang the label off it.
+      const lx = Math.max(8, Math.min(innerWidth - el.offsetWidth - 8, x + dx));
+      el.style.transform = `translate(${lx.toFixed(1)}px, ${(y + dy).toFixed(1)}px)`;
+    });
+  }
+
+  // the satellites have no fixed place at all — they are on a clock, orbiting their parent —
+  // so their labels ask scene3d where they ENDED UP each frame. Text comes from the same
+  // table, so a label cannot name a satellite that is not there.
+  satNodes.forEach((el, k) => { el.textContent = hero.satellites()[k][0]; });
+  function placeSats(on) {
+    const list = hero.satellites();
+    satNodes.forEach((el, k) => {
+      el.classList.toggle('active', on && list[k][4] > 0.02);
+      if (!on) return;
+      const [x, y] = hero.projectWorld(list[k][1], list[k][2], list[k][3]);
+      // centred UNDER the little star — they orbit, so a left/right offset would swing — and
+      // held inside the viewport, because on a phone the orbit reaches the frame edge
+      const h = el.offsetWidth / 2 + 8;
+      const xc = Math.max(h, Math.min(innerWidth - h, x));
+      el.style.transform =
+        `translate(${xc.toFixed(1)}px, ${(y + 0.030 * innerHeight).toFixed(1)}px) translateX(-50%)`;
     });
   }
 
@@ -962,14 +1050,24 @@ try {
   // go through hero.projectWorld. Moving a knob in scene3d moves the label with it.
   // An anchor comes back null when its end never loaded (the arm's bin), so a label can never
   // name a machine that is not on the screen — the same gate scene3d puts on that end's line.
+  // `live` is one flag PER LABEL, because the phone's solo staging runs the two ends of the
+  // fan-out as two halves of the beat — one machine on screen at a time means one name.
   const mcNodes = [document.getElementById('mc-arm'), document.getElementById('mc-nano')];
   function placeMachineLabels(live) {
-    const a = hero.anchors(), dx = 0.020 * innerHeight, dy = 0.032 * innerHeight;
+    const a = hero.anchors(), solo = innerWidth <= SOLO_W;
+    // both phone labels sit ABOVE their actor, centred — under it is where the released
+    // bead gas lies. The arm's anchor is its BASE (that is where the wire lands) and the
+    // machine is ~0.1H tall down here, so its label has that much further to climb.
+    const dx = solo ? 0 : 0.020 * innerHeight, dys = solo ? [-0.15, -0.055] : [0.032, 0.032];
     [a.arm, a.nano].forEach((p, k) => {
-      mcNodes[k].classList.toggle('active', live && !!p);
+      const dy = dys[k] * innerHeight;
+      mcNodes[k].classList.toggle('active', live[k] && !!p);
       if (!p) return;
       const [x, y] = hero.projectWorld(p[0], p[1], p[2]);
-      mcNodes[k].style.transform = `translate(${(x + dx).toFixed(1)}px, ${(y + dy).toFixed(1)}px)`;
+      // phone: centred ABOVE its actor, which owns the whole upper half. Desktop: below-right,
+      // out of the way of the machine's own lines.
+      mcNodes[k].style.transform = `translate(${(x + dx).toFixed(1)}px, ${(y + dy).toFixed(1)}px)`
+        + (solo ? ' translateX(-50%)' : '');
     });
   }
 
@@ -1002,14 +1100,19 @@ try {
     // the fan-out's two labels: up with the signal (which draws over t2 0.05…0.35), and gone
     // once the exit has taken the machine story away. Placed a little before they are shown,
     // so the first visible frame is already on its anchor rather than sliding onto it.
-    if (t2 > 0.02 && tx < 0.9) placeMachineLabels(t2 > 0.15 && tx < 0.5);
-    else mcNodes.forEach(el => el.classList.remove('active'));
+    const mlive = t2 > 0.15 && tx < 0.5, mSolo = innerWidth <= SOLO_W;
+    if (t2 > 0.02 && tx < 0.9) {
+      placeMachineLabels([mlive && (!mSolo || t2 < 0.55), mlive && (!mSolo || t2 > 0.55)]);
+    } else mcNodes.forEach(el => el.classList.remove('active'));
     const z = tj > 0.75;                        // zoomed: the card and the star dock come up
-    if (z !== zoomed) { zoomed = z; render(); }
+    if (z !== zoomed) { zoomed = z; if (z) swipeHint('journey'); render(); }
     // the projected labels name the OVERVIEW; once the zoom starts the card takes over
     const over = vSec === JSEC && tj > 0.08 && tj < 0.55;
     jrNodes.forEach(el => el.classList.toggle('active', over));
     if (vSec === JSEC && tj < 0.6) placeLabels();
+    // …and the satellites are named only where they are legible: zoomed onto their parent,
+    // which is the first star in the table (they are USTC's, and USTC is stop 01).
+    placeSats(vSec === JSEC && zoomed && planetIdx === 0);
   }
 
   function render() {
@@ -1054,12 +1157,14 @@ try {
     if (i === MSEC) { if (mAt() > 0.002) PHY.holdRelease(true); }
     else if (i === JSEC || i === WSEC || i === CSEC) PHY.holdRelease(true);
     else { PHY.holdRelease(false); PHY.retarget(ptsFor()); }
+    if (i === FSEC) swipeHint('fields');   // the first of the two switchers
     render();
   }
 
   function setField(j) {
     j = clamp(j, cards.length - 1);
     if (j === fieldIdx) return;
+    hideHint();                            // it has been understood; stop saying it
     fieldIdx = j;
     if (vSec === FSEC) PHY.retarget(ptsFor());
     render();
@@ -1068,8 +1173,9 @@ try {
   // the horizontal axis of the journey. scene3d eases its focus toward it, so the view
   // CRUISES along the constellation line to the next star instead of cutting.
   function setPlanet(j) {
-    j = clamp(j, jnCards.length - 1);
+    j = clamp(j, jnCards.length - 1);      // …which is 2 stops now: USTC and UT Austin
     if (j === planetIdx) return;
+    hideHint();
     planetIdx = j;
     hero.setPlanet(j);
     render();
@@ -1136,6 +1242,9 @@ try {
   // switch its hysteresis, so a flick past a boundary does not fire two retargets.
   (function tick() {
     requestAnimationFrame(tick);
+    // the cue has done its job the moment the page moves — and it never comes back, which is
+    // what nulling the reference says (no storage, no second flag).
+    if (scue && scrollY > 0.3 * innerHeight) { scue.classList.add('gone'); scue = null; }
     if (qaSec !== null) return;
     s += (scrollY - s) * 0.08;
     setSection(secAt());
@@ -1264,7 +1373,7 @@ try {
     qExit = done ? 1 : 0;
     qJour = done ? 1 : 0;         // section(3) = ZOOMED, not the overview; section(4) keeps it
     qFin = qaSec === CSEC ? 1 : 0;
-    if (qaSec === JSEC) setPlanet(3);   // …on UT Austin, the one with the CV on it
+    if (qaSec === JSEC) setPlanet(1);   // …on UT Austin, the one with the CV on it
     scrub();
   };
   __hero.field = j => setField(j);
@@ -1276,6 +1385,12 @@ try {
   __hero.exit = v => { qExit = c01(+v); scrub(); };
   __hero.journey = v => { qJour = c01(+v); scrub(); };
   __hero.finale = v => { qFin = c01(+v); scrub(); };
+  // the two hints, as state rather than pixels: __hero.cues()
+  __hero.cues = () => ({
+    scrollCue: document.querySelector('.scue').className, cueLive: !!scue,
+    swipeOn: swipeEl.classList.contains('on'), hinted: [...hinted],
+    coarse: matchMedia('(pointer: coarse)').matches, soloStaging: innerWidth <= SOLO_W,
+  });
 } catch (e) {
   fallback(e);
 }

@@ -28,7 +28,6 @@ const PLANE_S = 0.66;                     // physics px -> world units; word ≈
 const SHEET_Y = 0.16;                     // sheet centre height [·H]
 const CAM_Y = 0.52, CAM_Z = 1.30;         // camera position [·H], looking at the sheet centre
 const FOV = 34;
-const BEAD_R = 2.6;                       // bead geometry radius [world units]
 const FADE0 = 0.45;                       // sheet edge fade starts at this normalised radius
 const C = PHY.CONFIG;
 
@@ -46,13 +45,19 @@ const TIER = (() => {
     : (matchMedia('(pointer: coarse)').matches || innerWidth < 900
       || (navigator.deviceMemory && navigator.deviceMemory <= 4)) ? 'lite' : 'high';
 })();
+//   beadR      bead geometry radius multiplier. LITE runs 15% fatter — with no transmission
+//              the droplets read by their highlight alone, and a bigger one holds it.
 const Q = TIER === 'lite' ? {
-  tier: 'lite', beads: 360, glass: false, beadCol: 0x9fb4b8, envI: 2.6, seg: [14, 10],
-  msaa: 0, bloomRes: 0.5, bloomK: 0.9, dpr: 1.5, stars: 650, fabStride: 3,
+  tier: 'lite', beads: 520, glass: false, beadCol: 0xc4d8dc, envI: 2.8, seg: [14, 10],
+  msaa: 0, bloomRes: 0.5, bloomK: 0.9, dpr: 1.5, stars: 650, fabStride: 3, beadR: 1.15,
 } : {
   tier: 'high', beads: C.N, glass: true, beadCol: 0xf2feff, envI: 3.2, seg: [24, 16],
-  msaa: 4, bloomRes: 0.5, bloomK: 1.0, dpr: 2, stars: 1300, fabStride: 2,
+  msaa: 4, bloomRes: 0.5, bloomK: 1.0, dpr: 2, stars: 1300, fabStride: 2, beadR: 1,
 };
+// bead geometry radius [world units]. The tier scales the GEOMETRY, not the instance
+// baseline: `scl` still carries the per-bead size spread, and every reader of BEAD_R (the
+// rest height in placeBeads, project()'s offset) picks the new size up for free.
+const BEAD_R = 2.6 * Q.beadR;
 
 // opts (all optional, all for the board morph — see setMorph):
 //   board     already-parsed board JSON; skips the fetch entirely
@@ -837,6 +842,28 @@ export function createHero(canvas, opts = {}) {
     updateMorph();
   }
 
+  // ------------------------------------------------------------ solo staging (phone)
+  // A 390 px column cannot hold the desktop composition — hand left, arm right, cluster below,
+  // all at once — so under the CSS breakpoint the chapter stages ONE ACTOR AT A TIME: whoever
+  // the beat is about takes the upper half of the frame alone (the cards are bottom sheets down
+  // there) and everyone else steps back to a corner ghost. Every number here is a target the
+  // beat LERPS toward as a pure function of t2, so a scrub back up plays it in reverse exactly
+  // like the desktop composition does. Desktop reads none of it.
+  const SOLO_W = 760;        // the CSS breakpoint, in the one other file that knows it
+  const QPOS = {
+    bandSpan: 0.90,          // the hand's fit, centred [·W world]
+    bandY: 0.42,             // …and its height: the middle of the upper half [·H world]
+    ghostX: -0.40, ghostY: 0.60,   // the upper-left corner it retreats to [·W, ·H world]
+    ghostS: 0.40, ghostO: 0.30,    // …at 40% the size and 30% the opacity
+    armH: 0.38, armSpan: 0.86,     // the arm's fit, alone [·H, ·W world]
+    armY: 0.43, armZ: -0.05,       // …centred on the same upper half, just behind the sheet
+    armAim: 0.34,                  // where the signal lands on it [·H world]
+    armGhost: 0.30,                // …and how far it dims once the cluster takes over
+    nanoX: 0, nanoY: 0.40, nanoZ: 0.28, nanoK: 2.2,   // the cluster: centred, nearer, ×2.2
+    lift: 0.10,                    // the arcs' bow: a short chord needs a small one
+  };
+  let solo = false;          // W <= SOLO_W, resolved in relayout
+
   // ------------------------------------------------------------ SENSE (chapter ③, beat 2)
   // The board is not a bench object — it is a WRISTBAND controller, and this is where it goes
   // home. A hand + strap edge-ghost comes up right of centre and the board (the same board the
@@ -880,16 +907,29 @@ export function createHero(canvas, opts = {}) {
   const dockU = () => (bandV ? stg(bandT, 0.2, 0.85) : 0);
 
   // fit from the geometry's own bounds, same as placeArm
+  let bandS = 1;
   function placeBand() {
     if (!bandV) return;
     const bb = bandGeo.boundingBox, d = bb.max.clone().sub(bb.min);
-    const s = BAND_SPAN * H / Math.max(d.x, d.y, d.z);
-    bandV.scale.setScalar(s);
-    bandV.position.set(BAND_X * W, BAND_Y * H, BAND_Z * H);
+    bandS = (solo ? QPOS.bandSpan * W : BAND_SPAN * H) / Math.max(d.x, d.y, d.z);
     // YXZ, so the pitch tilts the hand along its OWN length and the yaw then swings it right
     bandV.rotation.set(BAND_PITCH * Math.PI / 180, BAND_YAW * Math.PI / 180, 0, 'YXZ');
+    poseBand();
+  }
+
+  // where the hand STANDS. Fixed on the desktop; on the phone it starts centred on the upper
+  // half and retreats to the corner ghost across the first half of the arm beat, so the arm
+  // gets the frame to itself. Pure function of armT — and since the berth is re-derived here,
+  // the board that docked into it rides along instead of being left behind.
+  function poseBand() {
+    const g = solo ? stg(armT, 0, 0.5) : 0;
+    bandV.scale.setScalar(bandS * (1 + (QPOS.ghostS - 1) * g));
+    if (solo) bandV.position.set(QPOS.ghostX * W * g,
+      (QPOS.bandY + (QPOS.ghostY - QPOS.bandY) * g) * H, BAND_Z * H);
+    else bandV.position.set(BAND_X * W, BAND_Y * H, BAND_Z * H);
     bandV.updateMatrixWorld();
     dockW.copy(bandDock).applyMatrix4(bandV.matrixWorld);
+    return g;
   }
 
   // the board scale that puts its long axis exactly across the berth. Derived, not a constant:
@@ -927,7 +967,8 @@ export function createHero(canvas, opts = {}) {
 
   function updateBand() {
     const t = bandT, inv = 1 - ss(exitT);
-    bandMat.opacity = BAND_OP * stg(t, 0, 0.4) * inv * algoDim();
+    const g = bandV ? poseBand() : 0;             // …and on the phone, its retreat to the corner
+    bandMat.opacity = BAND_OP * stg(t, 0, 0.4) * inv * algoDim() * (1 + (QPOS.ghostO - 1) * g);
     if (bandV) bandV.visible = bandMat.opacity > 0.004;
     // the board shrinks and glides until its centre sits in the berth on the wrist. Same idiom
     // the arm used to own — and the ONLY place the board's group transform is written now, so
@@ -1063,9 +1104,16 @@ export function createHero(canvas, opts = {}) {
     armRotM.makeRotationFromEuler(arm.rotation);
     armBox.copy(armGeo.boundingBox).applyMatrix4(armRotM);   // the box the viewer actually sees
     armBox.getSize(armDim);
-    const s = Math.min(ARM_H * H / armDim.y, ARM_SPAN * W / Math.max(armDim.x, armDim.z));
+    const s = solo
+      ? Math.min(QPOS.armH * H / armDim.y, QPOS.armSpan * W / Math.max(armDim.x, armDim.z))
+      : Math.min(ARM_H * H / armDim.y, ARM_SPAN * W / Math.max(armDim.x, armDim.z));
     arm.scale.setScalar(s);
-    arm.position.set(ARM_X * W, ARM_Y * H - armBox.min.y * s, ARM_Z * H);   // its base lands on ARM_Y
+    // desktop: the base lands on ARM_Y, right of centre. phone: the machine is the only thing
+    // on screen, so it is its MIDDLE that gets placed — dead centre of the upper half.
+    if (solo) {
+      arm.position.set(-(armBox.min.x + armDim.x / 2) * s,
+        QPOS.armY * H - (armBox.min.y + armDim.y / 2) * s, QPOS.armZ * H);
+    } else arm.position.set(ARM_X * W, ARM_Y * H - armBox.min.y * s, ARM_Z * H);
   }
 
   function loadArm() {
@@ -1093,11 +1141,15 @@ export function createHero(canvas, opts = {}) {
     // the exit walks the whole camera move back to 1×: the constellation has to read on the
     // sheet at hero framing, and the DOM labels project against this same camera.
     // …and the finale pulls the whole thing far back on top of that (chapter ⑤)
-    dolly = (1 + (dollyM + (DOLLY2 - DOLLY) * a - 1) * inv) * (1 + (FIN_DOLLY - 1) * ss(finT));
-    look.x = ARM_X * W * LOOK_DRIFT * a * inv;
-    armMat.opacity = ARM_OP * stg(t, 0, 0.5) * inv * gd;
+    // The phone keeps the framing it fitted its solo actor to: no second pull-back, and no
+    // look drift toward an arm that is already dead centre.
+    const d2 = solo ? DOLLY : DOLLY2;
+    dolly = (1 + (dollyM + (d2 - DOLLY) * a - 1) * inv) * (1 + (FIN_DOLLY - 1) * ss(finT));
+    look.x = solo ? 0 : ARM_X * W * LOOK_DRIFT * a * inv;
+    const nu = solo ? stg(t, 0.5, 0.85) : 0;   // the beat's second half: the cluster's turn
+    armMat.opacity = ARM_OP * stg(t, 0, 0.5) * inv * gd * (1 - (1 - QPOS.armGhost) * nu);
     if (arm) arm.visible = armMat.opacity > 0.004;
-    updateSignal(t, inv * gd);
+    updateSignal(t, inv * gd, nu);
     updateJourney();          // the planets and the ring are placed against this frame's dolly
   }
 
@@ -1119,24 +1171,29 @@ export function createHero(canvas, opts = {}) {
   // is a fail-soft: the beat still plays, just without its arrow. The nano line needs only the
   // hand, because its far end is procedural — one hand, many scales, and the smaller scale is
   // the one that never depended on an export.
-  function updateSignal(t, k) {
+  // …and on the phone it is not a fan-out at all but a RELAY: one line per half of the beat,
+  // out of the same (now cornered) berth — first to the arm, then to the cluster that takes
+  // its place. Same pure-function-of-t2 contract either way.
+  function updateSignal(t, k, nu) {
+    const dim = 1 - (1 - QPOS.armGhost) * nu;
     const draw = Math.round(SIG_N * ss(t / 0.85 < 1 ? t / 0.85 : 1));
+    const drawA = solo ? Math.round(SIG_N * stg(t, 0.02, 0.45)) : draw;
+    const drawN = solo ? Math.round(SIG_N * stg(t, 0.5, 0.9)) : draw;
     const o = SIG_OP * stg(t, 0.05, 0.35) * k;
+    const A = armAnchor(), P = nanoAt(), lift = (solo ? QPOS.lift : SIG_LIFT) * H;
 
-    sigDrawn = bandV && arm ? draw : 0;
-    sigArm.m.opacity = bandV && arm ? o : 0;
+    sigDrawn = bandV && arm ? drawA : 0;
+    sigArm.m.opacity = bandV && arm ? o * dim : 0;
     sigArm.l.visible = sigDrawn > 1 && sigArm.m.opacity > 0.004;
-    if (sigArm.l.visible) {
-      arcTo(sigArm, ARM_X * W, (ARM_Y + SIG_TO_Y) * H, ARM_Z * H, SIG_LIFT * H, sigDrawn);
-    }
+    if (sigArm.l.visible) arcTo(sigArm, A[0], A[1], A[2], lift, sigDrawn);
 
-    const n2 = bandV ? draw : 0;
-    sigNano.m.opacity = bandV ? o * 0.85 : 0;    // the thinner of the two: a hint, not a cable
+    const n2 = bandV ? drawN : 0;
+    // the thinner of the two: a hint, not a cable — and on the phone it waits its turn
+    sigNano.m.opacity = bandV ? (solo ? SIG_OP * stg(t, 0.5, 0.7) * k : o) * 0.85 : 0;
     sigNano.l.visible = n2 > 1 && sigNano.m.opacity > 0.004;
-    if (sigNano.l.visible) {
-      arcTo(sigNano, NANO_X * W, NANO_Y * H, NANO_Z * H, NANO_LIFT * H, n2);
-    }
-    nanoO = bandV ? stg(t, 0.15, 0.6) * k : 0;
+    if (sigNano.l.visible) arcTo(sigNano, P[0], P[1], P[2], (solo ? QPOS.lift : NANO_LIFT) * H, n2);
+
+    nanoO = bandV ? (solo ? stg(t, 0.5, 0.8) : stg(t, 0.15, 0.6)) * k : 0;
     nanoMat.opacity = nanoO;                     // drawFrame breathes this while it is visible
     nano.visible = nanoO > 0.004;
   }
@@ -1145,16 +1202,24 @@ export function createHero(canvas, opts = {}) {
   // instead of a copy of them, and follow every resize for free. `arm` is null until its bin
   // lands, the same gate updateSignal puts on the arm's line: a label naming a machine that is
   // not on screen is worse than no label, and this way the two can never disagree.
-  const anchors = () => ({
-    arm: arm ? [ARM_X * W, (ARM_Y + SIG_TO_Y) * H, ARM_Z * H] : null,
-    nano: [NANO_X * W, NANO_Y * H, NANO_Z * H],
-  });
+  // …which is why both ends are read from ONE pair of functions: the arcs, the labels and the
+  // cluster's own placement all ask these, so no staging can move a machine and leave its
+  // label (or its wire) on the desktop mark.
+  const armAnchor = () => (solo
+    ? [0, QPOS.armAim * H, QPOS.armZ * H]
+    : [ARM_X * W, (ARM_Y + SIG_TO_Y) * H, ARM_Z * H]);
+  const nanoAt = () => (solo
+    ? [QPOS.nanoX * W, QPOS.nanoY * H, QPOS.nanoZ * H]
+    : [NANO_X * W, NANO_Y * H, NANO_Z * H]);
+  const anchors = () => ({ arm: arm ? armAnchor() : null, nano: nanoAt() });
 
   // t2 ∈ [0, 1], scrub-safe both ways. The edge dump is fetched lazily on the first t2 > 0.
+  // updateBand, not updateArm: on the phone the hand's own pose (and the board docked to it)
+  // is a function of t2 as well, and updateBand is what re-derives the berth.
   function setArm(t) {
     armT = t > 0 ? (t < 1 ? t : 1) : 0;
     if (armT > 0 && !arm && !armBusy && !armFail) loadArm();
-    updateArm();
+    updateBand();
   }
 
   // ------------------------------------------------------------ the exit (chapter ③ → ④)
@@ -1189,12 +1254,27 @@ export function createHero(canvas, opts = {}) {
   // back undoes every stage exactly. The one non-pure thing is the breathing twinkle, which
   // lives in drawFrame off its own clock (and therefore shows up under advance() too).
   //   [name, x·W, y·H, n̂ offset ·H (depth stagger), magnitude]
+  // TWO primaries — the two degrees. One line between them.
   const PLANETS = [
-    ['USTC',      0.22, 0.55,  0.04, 1],
-    ['BERKELEY',  0.40, 0.46, -0.04, 1],
-    ['BROWN',     0.58, 0.40,  0.03, 1],
-    ['UT AUSTIN', 0.78, 0.30, -0.03, 1.5],   // Polaris
+    ['USTC',      0.30, 0.50,  0.04, 1],
+    ['UT AUSTIN', 0.72, 0.32, -0.03, 1.5],   // Polaris
   ];
+  // …and the two stops that were never a chapter of their own — a summer and an internship.
+  // They are SATELLITES of the school they hung off: the same star texture at a third the
+  // size, in a slow circle around USTC, in the sheet's own plane (û / ŵ), opposite phases.
+  // Their orbit is the only other clock in the chapter (see drawFrame) — everything else
+  // here is a pure function of t4.  [label, parent index, phase]
+  const SATS = [
+    ["BERKELEY '19", 0, 0],
+    ["BROWN '20", 0, Math.PI],
+  ];
+  const SAT_S = 0.35;        // satellite size, as a fraction of its parent's drawn size
+  const SAT_R = 46;          // orbit radius at the overview [sheet px]
+  const SAT_ZOOM = 7.0;      // …× that, once the parent is THE zoomed star (it grows ~9×)
+  const SAT_R_MAX = 0.17;    // …but never further out than this [·W world]: on a phone the
+                             // zoomed star is taller than the frame is WIDE, and an orbit
+                             // scaled to the star would swing its satellites off the screen
+  const SAT_HZ = 0.10;       // rad/s — a drift, not a spin
   // Both sizes are fractions of the SCREEN height, solved against each star's own distance —
   // a star has no true size, only a magnitude, so distance must not shrink it.
   const PL_BASE = 0.055;      // overview star size (spikes included)
@@ -1210,9 +1290,16 @@ export function createHero(canvas, opts = {}) {
   const RING_TILT = 18 * Math.PI / 180;
   const RING_SPIN = 0.06;     // rad/s
 
-  let planets = null, jourT = 0, finT = 0, planetIdx = 0, focusF = 0, starT = 0;
+  let planets = null, sats = null, jourT = 0, finT = 0, planetIdx = 0, focusF = 0, starT = 0;
   const starS = new Float32Array(PLANETS.length);   // per-star base scale / opacity, written by
   const starO = new Float32Array(PLANETS.length);   // updateJourney, twinkled in drawFrame
+  const starK = new Float32Array(PLANETS.length);   // …and how zoomed-in on it we are (0…1)
+  // the satellites' bases, same split: updateJourney writes where the parent IS and how big
+  // the orbit is, drawFrame turns the clock into a position (and records it in satW, which is
+  // what the page's two tiny labels project against).
+  const satP = new Float32Array(SATS.length * 3), satW = new Float32Array(SATS.length * 3);
+  const satR = new Float32Array(SATS.length), satS = new Float32Array(SATS.length);
+  const satO = new Float32Array(SATS.length);
   const journeyGrp = new THREE.Group();
   journeyGrp.visible = false;
   scene.add(journeyGrp);
@@ -1248,8 +1335,8 @@ export function createHero(canvas, opts = {}) {
   ring.visible = false;
   scene.add(ring);
 
-  // One canvas texture for all four stars — same idiom as makeBeamTex/makeGlowTex, so the
-  // chapter costs zero network. A telescope's star: brilliant gaussian core, two long thin
+  // One canvas texture for every star, satellites included — same idiom as makeBeamTex and
+  // makeGlowTex, so the chapter costs zero network. A telescope's star: gaussian core, two long thin
   // spikes on the axes, two shorter fainter ones at 45°, and a soft halo holding it together.
   // S = 512, not 256: the focused star fills half the screen, and at 256 the spikes turn to
   // mush there. One texture at 512 is cheaper (and one less crossfade) than two at 256.
@@ -1299,7 +1386,7 @@ export function createHero(canvas, opts = {}) {
   function buildPlanets() {
     if (planets) return;
     starTex = makeStarTex();
-    planets = PLANETS.map(([name]) => {
+    const mk = name => {
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({
         map: starTex, transparent: true, opacity: 0, depthWrite: false,
         blending: THREE.AdditiveBlending,
@@ -1307,7 +1394,9 @@ export function createHero(canvas, opts = {}) {
       sp.name = name;
       journeyGrp.add(sp);
       return sp;
-    });
+    };
+    planets = PLANETS.map(([name]) => mk(name));
+    sats = SATS.map(([name]) => mk(name));   // same texture, same group — just smaller
     updateJourney();
   }
 
@@ -1352,10 +1441,21 @@ export function createHero(canvas, opts = {}) {
       planets[i].position.copy(jp);
       starS[i] = r > 1e-4 ? r : 1e-4;
       starO[i] = born * (1 - (1 - PL_DIM) * away) * (1 - 0.45 * fin);
+      starK[i] = k;
       planets[i].visible = starO[i] > 0.004;
 
       if (i > 0) { const o = (i - 1) * 6; lp[o + 3] = jp.x; lp[o + 4] = jp.y; lp[o + 5] = jp.z; }
       if (i < planets.length - 1) { const o = i * 6; lp[o] = jp.x; lp[o + 1] = jp.y; lp[o + 2] = jp.z; }
+    }
+    // the satellites hang off whatever their parent ended up doing — the zoom's glide to the
+    // anchor, the unfocused shrink and the finale's fling are all already in these numbers,
+    // so they follow their school through every one of them for free.
+    for (let i = 0; i < SATS.length; i++) {
+      const p = SATS[i][1], o = i * 3;
+      satP[o] = planets[p].position.x; satP[o + 1] = planets[p].position.y; satP[o + 2] = planets[p].position.z;
+      satR[i] = Math.min(SAT_R * PLANE_S * (1 + (SAT_ZOOM - 1) * starK[p]), SAT_R_MAX * W);
+      satS[i] = SAT_S * starS[p];
+      satO[i] = starO[p];
     }
     linkGeo.attributes.position.needsUpdate = true;
     linkMat.opacity = 0.45 * stg(t, 0.18, 0.45) * (1 - 0.75 * zoom) * (1 - fin);
@@ -1363,7 +1463,7 @@ export function createHero(canvas, opts = {}) {
     journeyGrp.visible = t > 0.001;
   }
 
-  // t4 ∈ [0, 1], scrub-safe. The four textures are fetched lazily on the first t4 > 0.
+  // t4 ∈ [0, 1], scrub-safe. The star texture is built lazily on the first t4 > 0.
   function setJourney(t) {
     jourT = t > 0 ? (t < 1 ? t : 1) : 0;
     if (jourT > 0) buildPlanets();
@@ -1405,6 +1505,7 @@ export function createHero(canvas, opts = {}) {
   let camZ = 0;
 
   function relayout() {
+    solo = W <= SOLO_W;      // the phone's solo staging; everything below places against it
     // static half of the fabric: only the n̂ displacement animates, so x is fixed here
     // and the row's ŵ offset is recomputed cheaply per row in updateFabric.
     const g = PHY.grid, p = fabGeo.attributes.position.array;
@@ -1437,9 +1538,11 @@ export function createHero(canvas, opts = {}) {
     if (board) buildBoardGeom();
     placeBand();                 // …and the berth's world point, which the board docks onto
     placeArm();
-    nano.position.set(NANO_X * W, NANO_Y * H, NANO_Z * H);
-    nano.scale.setScalar(NANO_R * H);
-    nanoPt = NANO_PT * H;        // sizeAttenuation: a point's size is in WORLD units, and
+    const NP = nanoAt();         // …and on the phone the cluster is a solo actor: ×QPOS.nanoK
+    nano.position.set(NP[0], NP[1], NP[2]);
+    nano.scale.setScalar(NANO_R * H * (solo ? QPOS.nanoK : 1));
+    nanoPt = NANO_PT * H * (solo ? QPOS.nanoK : 1);
+                                 // sizeAttenuation: a point's size is in WORLD units, and
                                  // object scale does not reach it — so it is set here, not scaled
     updateMorph();               // -> updateBand() -> updateArm(): dolly, look drift, dock transform
 
@@ -1525,6 +1628,19 @@ export function createHero(canvas, opts = {}) {
         const s = starS[i] * (1 + PL_TW_S * p);
         planets[i].scale.set(s, s, 1);
         planets[i].material.opacity = starO[i] * (1 - PL_TW_O + PL_TW_O * p);
+      }
+      // …and the orbit, on the same clock and by the same rule: updateJourney owns the base,
+      // this owns the angle. û·cos + ŵ·sin, i.e. a circle lying IN the sheet.
+      for (let i = 0; i < sats.length; i++) {
+        const a = SAT_HZ * starT + SATS[i][2], o = i * 3;
+        const cx = Math.cos(a) * satR[i], cw = Math.sin(a) * satR[i];
+        satW[o] = satP[o] + cx;
+        satW[o + 1] = satP[o + 1] + cw * SINP;
+        satW[o + 2] = satP[o + 2] - cw * COSP;
+        sats[i].position.set(satW[o], satW[o + 1], satW[o + 2]);
+        sats[i].scale.set(satS[i], satS[i], 1);
+        sats[i].material.opacity = satO[i];
+        sats[i].visible = satO[i] > 0.004;
       }
     }
     if (ring.visible) ring.rotation.z += RING_SPIN * dt;
@@ -1624,6 +1740,10 @@ export function createHero(canvas, opts = {}) {
         starsBuilt: planets ? planets.length : 0,
         starOpacity: planets ? planets.map(p => +p.material.opacity.toFixed(3)) : null,
         starScale: planets ? planets.map(p => Math.round(p.scale.x)) : null,
+        satOpacity: sats ? sats.map(p => +p.material.opacity.toFixed(3)) : null,
+        satScale: sats ? sats.map(p => Math.round(p.scale.x)) : null,
+        satOrbitPx: sats ? [...satR].map(v => Math.round(v)) : null,
+        satPos: sats ? sats.map(p => [p.position.x, p.position.y].map(v => Math.round(v))) : null,
         linkOpacity: +linkMat.opacity.toFixed(3), ringOpacity: +ringMat.opacity.toFixed(3),
       };
       if (!board) return { board: null, failed: boardFail, pending: boardBusy, t: morphT, t3: exitT, ...mch, ...jrn };
@@ -1685,6 +1805,10 @@ export function createHero(canvas, opts = {}) {
     // the one table the journey is authored in — the page pins its overview labels to it,
     // so a label can never drift off its own planet: [name, x·W, y·H, n̂ offset ·H]
     nodes: PLANETS.map(([n, x, y, z]) => [n, x, y, z]),
+    // …and the satellites, which have no fixed place at all: their world position is wherever
+    // the last frame's orbit put them, so the page reads it rather than deriving it.
+    // [label, x, y, z, opacity] — opacity is the gate, so a label cannot outlive its star.
+    satellites: () => SATS.map(([n], i) => [n, satW[i * 3], satW[i * 3 + 1], satW[i * 3 + 2], satO[i]]),
     dispose() {
       cancelAnimationFrame(raf);
       clearTimeout(rt);
@@ -1708,8 +1832,9 @@ export function createHero(canvas, opts = {}) {
       photoMat.dispose();
       for (const sp of silkGrp.children) { sp.material.map.dispose(); sp.material.dispose(); }
       linkGeo.dispose(); linkMat.dispose(); ringGeo.dispose(); ringMat.dispose();
-      if (starTex) starTex.dispose();                 // one texture, shared by all four stars
+      if (starTex) starTex.dispose();                 // one texture, shared by every star
       if (planets) for (const p of planets) p.material.dispose();
+      if (sats) for (const p of sats) p.material.dispose();
       fabMat.dispose(); starMat.dispose(); glassMat.dispose(); tracMat.dispose();
       beamMat.dispose(); glowMat.dispose(); coreMat.dispose();
       beamTex.dispose(); glowTex.dispose();
